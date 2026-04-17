@@ -54,7 +54,7 @@
       margin-bottom: 24px;
     }
     .logo-img {
-      width: 200px;
+      width: 320px;
       height: auto;
       display: block;
       transform: rotate(-2deg);
@@ -90,13 +90,13 @@
     }
 
     .subtitle {
-      font-weight: 500;
-      font-size: clamp(16px, 1.5vw, 19px);
-      line-height: 1.55;
-      color: #333;
+      font-family: 'Mulish', system-ui, sans-serif;
+      font-weight: 700;
+      font-size: clamp(17px, 1.7vw, 21px);
+      line-height: 1.5;
+      color: #FDB515;
       margin-bottom: 32px;
-      max-width: 560px;
-      font-style: italic;
+      max-width: 640px;
     }
 
     .action-row {
@@ -430,19 +430,18 @@
 
     @media (max-width: 960px) {
       .hero { padding: 32px 20px 20px; }
-      .logo-img { width: 150px; }
+      .logo-img { width: 240px; }
       .action-row { flex-direction: column; width: 100%; }
       .google-btn { width: 100%; justify-content: center; }
-      .subtitle { max-width: 520px; }
+      .subtitle { max-width: 560px; }
     }
     @media (max-width: 480px) {
       .hero { padding: 24px 16px 72px; }
       .headline { font-size: 2.1rem; }
-      .est-line { font-size: 1.9rem; }
-      .subtitle { font-size: 15px; }
+      .subtitle { font-size: 16px; }
       .dropdown-trigger, .google-btn { height: 56px; padding: 14px 18px; font-size: 15px; }
       .hero-footer { font-size: 10px; flex-direction: column; gap: 6px; text-align: center; padding-top: 10px; }
-      .logo-img { width: 130px; }
+      .logo-img { width: 190px; }
     }
     @media (prefers-reduced-motion: reduce) {
       * { transition: none !important; animation: none !important; }
@@ -457,8 +456,7 @@
   </div>
 
   <div class="content-slot">
-    <h1 class="headline">BoomerCounselor.com</h1>
-    <div class="est-line">Est. 2026.</div>
+    <h1 class="headline">Boomer Counselor</h1>
     <p class="subtitle">&hellip;because your future deserves more than guesswork.</p>
 
     <div class="action-row">
