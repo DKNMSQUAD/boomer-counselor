@@ -1,58 +1,21 @@
+import './masthead.css';
+
 const Masthead = ({ colleges }) => {
   const collegeCount = colleges.length;
   return (
-    <header className="app-header" style={{
-      background: '#ffffff',
-      borderBottom: '2.5px solid #1a1a1a',
-      padding: '28px 40px 22px',
-      fontFamily: "'Mulish', system-ui, -apple-system, sans-serif",
-    }}>
-      <div style={{
-        maxWidth: 1400, margin: '0 auto',
-        display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 24,
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 20, minWidth: 0, flex: 1 }}>
-          <img src={import.meta.env.BASE_URL + 'nm-logo.png'} alt='Boomer Counselor' style={{ width: 70, height: 70, borderRadius: '50%', flexShrink: 0, objectFit: 'contain' }} />
-          <div style={{ minWidth: 0 }}>
-            <h1 style={{
-              fontFamily: "'Mulish', system-ui, sans-serif",
-              fontSize: 'clamp(28px, 4vw, 44px)',
-              fontWeight: 900,
-              color: '#1a1a1a',
-              lineHeight: 1.05,
-              letterSpacing: '-0.025em',
-              margin: 0,
-            }}>
-              College Search
-            </h1>
-            <div style={{
-              fontFamily: "'Caveat', cursive",
-              fontSize: 'clamp(18px, 2.2vw, 24px)',
-              fontWeight: 700,
-              color: '#FDB515',
-              lineHeight: 1,
-              marginTop: 4,
-            }}>
-              Find your match.
-            </div>
+    <header className="bc-masthead">
+      <div className="bc-masthead-inner">
+        <div className="bc-masthead-left">
+          <img className="bc-masthead-logo" src={import.meta.env.BASE_URL + 'nm-logo.png'} alt='Boomer Counselor' />
+          <div className="bc-masthead-titles">
+            <h1 className="bc-masthead-title">College Search</h1>
+            <div className="bc-masthead-tagline">Find your match.</div>
           </div>
         </div>
-        <div style={{ textAlign: 'right', flexShrink: 0 }}>
-          {[
-            '9 Regions',
-            `${collegeCount} Colleges`,
-            '1,000s of courses',
-          ].map(s => (
-            <div key={s} style={{
-              fontFamily: "'Mulish', system-ui, sans-serif",
-              fontSize: 11,
-              fontWeight: 700,
-              letterSpacing: '0.1em',
-              color: '#666',
-              lineHeight: 2,
-              textTransform: 'uppercase',
-            }}>{s}</div>
-          ))}
+        <div className="bc-masthead-stats">
+          <div className="bc-masthead-stat">9 Regions</div>
+          <div className="bc-masthead-stat">{collegeCount} Colleges</div>
+          <div className="bc-masthead-stat">1,000s of courses</div>
         </div>
       </div>
     </header>

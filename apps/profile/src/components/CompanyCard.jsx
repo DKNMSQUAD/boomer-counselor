@@ -30,11 +30,6 @@ export default function CompanyCard({ company, criteria, selectedCriteria }) {
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
             <h3 style={{ fontFamily: 'Playfair Display', fontSize: 18, fontWeight: 800, color: '#1a1a1a', lineHeight: 1.2 }}>{company.name}</h3>
           </div>
-          {hasWebsite && (
-            <span style={{ fontFamily: 'IBM Plex Mono', fontSize: 9, color: '#888', letterSpacing: '0.04em', display: 'block', marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-              {company.website.replace(/^https?:\/\//, '').replace(/\/$/, '')}
-            </span>
-          )}
         </div>
       </div>
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginTop: 10 }}>
