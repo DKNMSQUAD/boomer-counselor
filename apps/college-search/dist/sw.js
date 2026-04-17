@@ -1,5 +1,6 @@
-const CACHE = 'nmsquad-v1';
-const PRECACHE = ['/', '/index.html', '/nm-logo.png', '/favicon.png'];
+const CACHE = 'boomer-counselor-college-search-v1';
+const BASE = '/college-search/';
+const PRECACHE = [BASE, BASE + 'index.html', BASE + 'nm-logo.png', BASE + 'favicon.png'];
 
 self.addEventListener('install', e => {
   e.waitUntil(

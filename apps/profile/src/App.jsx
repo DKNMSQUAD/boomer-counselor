@@ -19,7 +19,7 @@ export default function App() {
     return (
       <div style={{ minHeight: '100vh', background: '#eee8d9', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         <div style={{ textAlign: 'center' }}>
-          <img src='/logo.png' alt='NM Squad' style={{ width: 60, height: 60, borderRadius: '50%', marginBottom: 20, opacity: 0.7 }} />
+          <img src={import.meta.env.BASE_URL + 'logo.png'} alt='Boomer Counselor' style={{ width: 60, height: 60, borderRadius: '50%', marginBottom: 20, opacity: 0.7 }} />
           <div style={{ fontFamily: 'IBM Plex Mono', fontSize: 12, color: '#888', letterSpacing: '0.12em', textTransform: 'uppercase' }}>Loading companies...</div>
         </div>
       </div>
@@ -44,7 +44,7 @@ export default function App() {
       <CompanyGrid companies={companies} criteria={criteria} results={results} selectedCriteria={selected} />
       <footer style={{ borderTop: '1px solid #c8bfa8', padding: '16px 40px', background: '#e8e1d0' }}>
         <span style={{ fontFamily: 'IBM Plex Mono', fontSize: 10, color: '#aaa', letterSpacing: '0.1em', textTransform: 'uppercase' }}>
-          NM Squad Profile Builder &middot; Counselor Neeraj Mandhana
+          Profile Builder
         </span>
       </footer>
     </div>

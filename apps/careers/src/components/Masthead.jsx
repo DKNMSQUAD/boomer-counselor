@@ -5,13 +5,13 @@ export default function Masthead({ matchCount, totalSelected }) {
       <div style={{ maxWidth: 1140, margin: '0 auto', padding: '0 24px' }}>
         <div style={{ borderBottom: '1px solid #2a2a2a', padding: '10px 0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <span style={{ fontFamily: 'IBM Plex Mono', fontSize: 10, color: '#666', letterSpacing: '0.1em', textTransform: 'uppercase' }}>{today}</span>
-          <span style={{ fontFamily: 'IBM Plex Mono', fontSize: 10, color: '#666', letterSpacing: '0.1em', textTransform: 'uppercase' }}>NM Squad Intelligence</span>
+          <span style={{ fontFamily: 'IBM Plex Mono', fontSize: 10, color: '#666', letterSpacing: '0.1em', textTransform: 'uppercase' }}>Boomer Counselor</span>
         </div>
         <div style={{ padding: '22px 0 16px', textAlign: 'center' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 16, marginBottom: 8 }}>
-            <img src='/logo.png' alt='NM Squad' style={{ width: 52, height: 52, borderRadius: '50%' }} />
+            <img src={import.meta.env.BASE_URL + 'logo.png'} alt='Boomer Counselor' style={{ width: 52, height: 52, borderRadius: '50%' }} />
             <h1 style={{ fontFamily: 'Playfair Display', fontSize: 34, fontWeight: 900, letterSpacing: '-0.02em', color: '#fff', lineHeight: 1 }}>
-              NM Squad Career Discovery
+              Career Discovery
             </h1>
           </div>
           <p style={{ fontFamily: 'IBM Plex Mono', fontSize: 11, color: '#666', letterSpacing: '0.1em', textTransform: 'uppercase' }}>

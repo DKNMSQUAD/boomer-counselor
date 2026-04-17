@@ -1,4 +1,4 @@
-// NM Squad College Dataset — v1 Demo
+// College Dataset — v1 Demo
 
 export const COLLEGES = [
   {

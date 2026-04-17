@@ -9,7 +9,7 @@ import TermsOfUse from './components/TermsOfUse';
 import { InstallPrompt } from "./InstallPrompt";
 import { usePurchases }   from "./hooks/usePurchases";
 
-const SHORTLIST_KEY = "nm_squad_shortlist";
+const SHORTLIST_KEY = "boomer_counselor_shortlist";
 const EMPTY_FILTERS = { major: [], region: [], location: [], size: [], chance: [] };
 
 function App() {
@@ -77,7 +77,7 @@ function App() {
 
   if (loading) return (
     <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center" }}>
-      <img src="/nm-logo.png" alt="NM Squad" style={{ height: 80, width: 80, objectFit: "contain", opacity: 0.7, animation: "pulse 1.5s ease-in-out infinite" }} />
+      <img src={import.meta.env.BASE_URL + "nm-logo.png"} alt="Boomer Counselor" style={{ height: 80, width: 80, objectFit: "contain", opacity: 0.7, animation: "pulse 1.5s ease-in-out infinite" }} />
     </div>
   );
 
@@ -129,7 +129,7 @@ function App() {
       )}
 
       <footer className="app-footer" style={{ borderTop: "1px solid var(--border)", marginTop: 32, display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 10, color: "var(--muted)", letterSpacing: "0.06em", textTransform: "uppercase" }}>
-        <span>&copy; 2026 NM Squad &mdash; Neeraj Mandhana. All rights reserved.</span>
+        <span>&copy; 2026 Boomer Counselor. All rights reserved.</span>
         <div style={{display:'flex',gap:16,flexWrap:'wrap'}}>
           <button onClick={()=>setShowPrivacy(true)} style={{background:'none',border:'none',color:'var(--muted)',fontFamily:"'IBM Plex Mono',monospace",fontSize:10,letterSpacing:'0.06em',textTransform:'uppercase',cursor:'pointer',padding:0,textDecoration:'underline'}}>Privacy Policy</button>
           <button onClick={()=>setShowTerms(true)} style={{background:'none',border:'none',color:'var(--muted)',fontFamily:"'IBM Plex Mono',monospace",fontSize:10,letterSpacing:'0.06em',textTransform:'uppercase',cursor:'pointer',padding:0,textDecoration:'underline'}}>Terms of Use</button>

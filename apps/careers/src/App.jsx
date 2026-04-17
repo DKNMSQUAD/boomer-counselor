@@ -19,7 +19,7 @@ export default function App() {
       <CareerGrid results={results} selectedTraits={selected} />
       <footer style={{ borderTop: '1px solid #e5e7eb', padding: '20px 24px', textAlign: 'center', marginTop: 40 }}>
         <span style={{ fontFamily: 'IBM Plex Mono', fontSize: 10, color: '#aaa', letterSpacing: '0.06em', textTransform: 'uppercase' }}>
-          NM Squad Career Discovery Platform &middot; Powered by NM Squad Intelligence
+          Career Discovery
         </span>
       </footer>
     </div>

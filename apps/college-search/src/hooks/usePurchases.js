@@ -1,6 +1,6 @@
 import { useState } from "react";
 
-const KEY = "nm_squad_purchases";
+const KEY = "boomer_counselor_purchases";
 
 export const usePurchases = () => {
   const [purchased, setPurchased] = useState(() => {

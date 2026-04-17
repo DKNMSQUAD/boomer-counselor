@@ -47,9 +47,9 @@ async function sendReportEmail({customer,collegeName,pdfUrl}){
   const buf=Buffer.from(await r.arrayBuffer());
   const safe=collegeName.replace(/[^a-z0-9\s]/gi,"").trim().replace(/\s+/g,"-");
   await t.sendMail({
-    from:`"NM Squad Reports" <${process.env.GMAIL_USER}>`,
+    from:`"Boomer Counselor Reports" <${process.env.GMAIL_USER}>`,
     to:customer.email,
-    subject:"Your College Report: "+collegeName+" \u2014 NM Squad",
+    subject:"Your College Report: "+collegeName+" \u2014 Boomer Counselor",
     html:`<div style="font-family:Georgia,serif;max-width:600px;margin:0 auto"><h2>Your Report is Ready</h2><p>Dear ${customer.name},</p><p>Your full report for <strong>${collegeName}</strong> is attached.</p></div>`,
     attachments:[{filename:safe+"-Report.pdf",content:buf,contentType:"application/pdf"}]
   });

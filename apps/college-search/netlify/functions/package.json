@@ -1,5 +1,5 @@
 {
-  "name": "nm-squad-functions",
+  "name": "boomer-counselor-functions",
   "version": "1.0.0",
   "private": true,
   "engines": { "node": ">=18" },

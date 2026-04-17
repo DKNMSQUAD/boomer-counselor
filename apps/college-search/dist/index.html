@@ -8,11 +8,11 @@
     <meta name="theme-color" content="#1a1612" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-    <meta name="apple-mobile-web-app-title" content="NM College" />
-    <meta name="description" content="College Search by NM Squad — Intelligence Reports, Application Strategy, College Research by Counselor Neeraj Mandhana" />
+    <meta name="apple-mobile-web-app-title" content="College Search" />
+    <meta name="description" content="College Search by Boomer Counselor — Intelligence Reports, Application Strategy, College Research" />
     <link rel="manifest" href="/college-search/manifest.json" />
-    <title>College Search by NM Squad</title>
-    <script type="module" crossorigin src="/college-search/assets/index-CwLDfVZL.js"></script>
+    <title>College Search</title>
+    <script type="module" crossorigin src="/college-search/assets/index-BoD8ULle.js"></script>
     <link rel="stylesheet" crossorigin href="/college-search/assets/index-Drg6N2eH.css">
   </head>
   <body>
@@ -20,7 +20,7 @@
     <script>
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
-          navigator.serviceWorker.register('/sw.js')
+          navigator.serviceWorker.register('/college-search/sw.js', { scope: '/college-search/' })
             .then(r => console.log('SW registered'))
             .catch(e => console.log('SW error', e));
         });

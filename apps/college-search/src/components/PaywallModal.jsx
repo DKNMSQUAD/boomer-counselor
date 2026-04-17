@@ -67,7 +67,7 @@ export default function PaywallModal({ college, price, onSuccess, onClose }) {
           key: keyId,
           amount: orderAmount,
           currency,
-          name: "NM Squad",
+          name: "Boomer Counselor",
           description: "College Report: " + college.name,
           order_id: orderId,
           prefill: { name: customer.name, email: customer.email, contact: customer.phone },

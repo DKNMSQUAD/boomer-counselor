@@ -24,9 +24,9 @@ export function InstallPrompt() {
 
   return (
     <div style={{ position:"fixed",bottom:0,left:0,right:0,zIndex:9999,background:"#1a1612",color:"#fff",padding:"14px 16px",paddingBottom:"calc(14px + env(safe-area-inset-bottom))",display:"flex",alignItems:"center",gap:12,boxShadow:"0 -4px 24px rgba(0,0,0,0.35)" }}>
-      <img src="/icon-192.png" alt="" style={{width:42,height:42,borderRadius:10,flexShrink:0}} />
+      <img src={import.meta.env.BASE_URL + "icon-192.png"} alt="" style={{width:42,height:42,borderRadius:10,flexShrink:0}} />
       <div style={{flex:1,minWidth:0}}>
-        <div style={{fontFamily:"Playfair Display,serif",fontSize:13,fontWeight:700}}>College Search by NM Squad</div>
+        <div style={{fontFamily:"Playfair Display,serif",fontSize:13,fontWeight:700}}>College Search</div>
         <div style={{fontSize:10,color:"#bbb",marginTop:2}}>{ios ? "Tap Share then Add to Home Screen" : "Install as an app — free, instant"}</div>
       </div>
       {!ios && <button onClick={install} style={{background:"#c0392b",color:"#fff",border:"none",padding:"9px 16px",fontFamily:"IBM Plex Mono,monospace",fontSize:10,letterSpacing:"0.06em",textTransform:"uppercase",cursor:"pointer",flexShrink:0,fontWeight:600}}>Install</button>}
