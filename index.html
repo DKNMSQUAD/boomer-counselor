@@ -122,7 +122,7 @@
       flex-wrap: wrap;
     }
 
-    .dropdown-wrap { flex: 1 1 300px; position: relative; }
+    .dropdown-wrap { flex: 1 1 0; min-width: 280px; position: relative; }
 
     .dropdown-trigger {
       width: 100%;
@@ -213,11 +213,13 @@
       font-size: 16px;
       display: flex;
       align-items: center;
+      justify-content: center;
       gap: 12px;
       height: 60px;
       transition: transform 0.15s, box-shadow 0.15s;
       white-space: nowrap;
-      flex-shrink: 0;
+      flex: 1 1 0;
+      min-width: 280px;
       cursor: pointer;
     }
     .google-btn:not(:disabled):hover {
@@ -242,7 +244,9 @@
       font-weight: 700;
       font-size: 14px;
       margin-top: 14px;
-      max-width: 520px;
+      max-width: 720px;
+      width: 100%;
+      box-sizing: border-box;
     }
     .signed-in-pill.show { display: inline-flex; }
     .signed-in-pill img {
