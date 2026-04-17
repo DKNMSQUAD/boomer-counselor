@@ -1,0 +1,33 @@
+import { useEffect } from "react";
+export default function PrivacyPolicy({ onClose }) {
+  useEffect(() => { document.body.style.overflow = "hidden"; return () => { document.body.style.overflow = ""; }; }, []);
+  const S = { fontFamily:"'IBM Plex Mono',monospace", fontSize:11, color:"var(--muted)", lineHeight:1.9 };
+  const H = { ...S, color:"var(--ink)", fontWeight:600, marginBottom:6 };
+  const P = { ...S, marginBottom:14 };
+  return (
+    <div style={{ position:"fixed",inset:0,background:"rgba(26,22,18,0.7)",zIndex:9000,display:"flex",alignItems:"center",justifyContent:"center",padding:16 }}>
+      <div style={{ background:"var(--paper)",maxWidth:640,width:"100%",maxHeight:"90vh",overflowY:"auto",borderTop:"3px solid var(--ink)",padding:"28px 28px 32px" }}>
+        <div style={{ display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:20 }}>
+          <div style={{ fontFamily:"'Playfair Display',serif",fontSize:22,fontWeight:700 }}>Privacy Policy</div>
+          <button onClick={onClose} style={{ background:"none",border:"1px solid var(--border)",color:"var(--muted)",fontSize:20,cursor:"pointer",padding:"4px 10px" }}>&times;</button>
+        </div>
+        <p style={P}><strong style={{color:"var(--ink)"}}>Last updated: April 2026</strong></p>
+        <p style={P}>This Privacy Policy governs the use of <strong>College Search by NM Squad</strong>, operated by Neeraj Mandhana. By using this platform you agree to the terms below.</p>
+        <p style={H}>1. Information We Collect</p>
+        <p style={P}>When you purchase a report we collect your name, school/organisation, email address and phone number solely to deliver your report and maintain payment records. We do not collect any information from users who browse without purchasing.</p>
+        <p style={H}>2. How We Use Your Information</p>
+        <p style={P}>Your information is used exclusively to: (a) deliver your purchased Intelligence Report by email; (b) maintain transaction records; (c) contact you if there is an issue with your order. We do not use your data for marketing without explicit consent.</p>
+        <p style={H}>3. Data Sharing</p>
+        <p style={P}>We do not sell, rent or share your personal information with any third party except as required to process your payment (Razorpay) and deliver your report (Gmail).</p>
+        <p style={H}>4. Data Storage</p>
+        <p style={P}>Transaction records are stored securely on Google Firebase, accessible only to NM Squad administrators. Payment processing is handled by Razorpay (PCI-DSS compliant). We do not store your card details.</p>
+        <p style={H}>5. Cookies</p>
+        <p style={P}>This site uses localStorage solely to remember your shortlisted colleges on your own device. No tracking cookies or third-party analytics are used.</p>
+        <p style={H}>6. Your Rights</p>
+        <p style={P}>You may request deletion of your personal data at any time by emailing reports.nmsquad@gmail.com. We will respond within 7 business days.</p>
+        <p style={H}>7. Contact</p>
+        <p style={S}>For privacy concerns contact: <strong style={{color:"var(--ink)"}}>reports.nmsquad@gmail.com</strong></p>
+      </div>
+    </div>
+  );
+}

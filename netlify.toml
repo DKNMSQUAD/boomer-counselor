@@ -1,6 +1,27 @@
 [build]
   publish = "."
 
+# Rewrite /careers/*, /profile/*, /college-search/* to the built dist/ folders
+# Status 200 = rewrite (URL bar stays the same, content served from internal path)
+
+[[redirects]]
+  from = "/careers/*"
+  to   = "/apps/careers/dist/:splat"
+  status = 200
+
+[[redirects]]
+  from = "/profile/*"
+  to   = "/apps/profile/dist/:splat"
+  status = 200
+
+[[redirects]]
+  from = "/college-search/*"
+  to   = "/apps/college-search/dist/:splat"
+  status = 200
+
+# Hub page stays at root. X-Frame-Options must be SAMEORIGIN (not DENY)
+# so that the hub's iframe viewer can load the tools from the same origin.
+
 [[headers]]
   for = "/*"
   [headers.values]
@@ -18,3 +39,9 @@
   for = "/*.html"
   [headers.values]
     Cache-Control = "public, max-age=0, must-revalidate"
+
+# Hashed Vite assets can be cached forever
+[[headers]]
+  for = "/apps/*/dist/assets/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"

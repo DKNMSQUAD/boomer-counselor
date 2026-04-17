@@ -1,0 +1,22 @@
+{
+  "appId": "com.nmsquad.collegesearch",
+  "appName": "College Search",
+  "webDir": "dist",
+  "server": {
+    "androidScheme": "https"
+  },
+  "ios": {
+    "contentInset": "automatic"
+  },
+  "android": {
+    "allowMixedContent": false
+  },
+  "plugins": {
+    "SplashScreen": {
+      "launchAutoHide": true,
+      "backgroundColor": "#f5f0e8",
+      "androidSplashResourceName": "splash",
+      "showSpinner": false
+    }
+  }
+}

@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
+  <circle cx="100" cy="100" r="95" fill="#F5C430" stroke="none"/>
+  <text x="100" y="85" text-anchor="middle" font-family="Arial Black,sans-serif" font-size="52" font-weight="900" fill="#0D0B09">NM</text>
+  <text x="100" y="135" text-anchor="middle" font-family="Arial Black,sans-serif" font-size="28" font-weight="900" fill="#0D0B09" letter-spacing="4">SQUAD</text>
+</svg>
