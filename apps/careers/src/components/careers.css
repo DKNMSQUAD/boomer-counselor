@@ -1,0 +1,189 @@
+/* Career Discovery grid + cards */
+
+.bc-careers-wrap {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 32px 32px 60px;
+}
+
+.bc-empty {
+  text-align: center;
+  padding: 60px 24px;
+}
+
+.bc-section-header {
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+  flex-wrap: wrap;
+  margin-bottom: 28px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #e8e2d3;
+}
+.bc-section-title {
+  font-family: 'Playfair Display', serif;
+  font-size: 28px;
+  font-weight: 800;
+  color: #1a1a1a;
+  margin: 0;
+}
+.bc-section-hint {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  color: #888;
+  text-transform: uppercase;
+}
+
+.bc-band {
+  margin-bottom: 36px;
+}
+.bc-band-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 16px;
+  padding-bottom: 6px;
+}
+.bc-band-dot {
+  display: inline-block;
+  width: 10px; height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.bc-band-label {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+.bc-band-range {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  color: #999;
+  letter-spacing: 0.04em;
+}
+.bc-band-sep {
+  color: #ccc;
+  font-size: 11px;
+}
+.bc-band-count {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  color: #999;
+  letter-spacing: 0.04em;
+}
+
+.bc-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 14px;
+}
+
+/* Individual career card */
+.bc-career-card {
+  background: #fff;
+  border: 1px solid #e8e2d3;
+  border-radius: 4px;
+  padding: 16px 18px 14px;
+  transition: box-shadow 0.18s;
+}
+.bc-career-card:hover {
+  box-shadow: 0 2px 14px rgba(0,0,0,0.06);
+}
+
+.bc-career-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+.bc-career-title {
+  font-family: 'Playfair Display', serif;
+  font-size: 20px;
+  font-weight: 800;
+  color: #1a1a1a;
+  line-height: 1.2;
+  margin: 0;
+  flex: 1;
+  min-width: 0;
+}
+.bc-match-badge {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  padding: 4px 10px;
+  border: 1.5px solid currentColor;
+  border-radius: 3px;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.bc-progress {
+  height: 4px;
+  background: #f0ece0;
+  border-radius: 2px;
+  overflow: hidden;
+  margin-bottom: 6px;
+}
+.bc-progress-fill {
+  height: 100%;
+  transition: width 0.4s ease;
+  border-radius: 2px;
+}
+.bc-match-detail {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  color: #999;
+  letter-spacing: 0.04em;
+  margin-bottom: 10px;
+}
+
+.bc-traits {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-top: 8px;
+}
+.bc-trait {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  padding: 3px 9px;
+  border: 1px solid;
+  border-radius: 2px;
+}
+.bc-trait.is-on { font-weight: 700; }
+.bc-trait-dot {
+  width: 5px; height: 5px;
+  border-radius: 50%;
+  display: inline-block;
+  flex-shrink: 0;
+}
+.bc-trait-empty {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  color: #bbb;
+  letter-spacing: 0.04em;
+}
+
+/* Responsive */
+@media (max-width: 960px) {
+  .bc-careers-wrap { padding: 24px 20px 48px; }
+}
+@media (max-width: 640px) {
+  .bc-careers-wrap { padding: 18px 14px 40px; }
+  .bc-section-title { font-size: 22px; }
+  .bc-cards-grid { grid-template-columns: 1fr; }
+  .bc-career-title { font-size: 18px; }
+  .bc-match-badge { font-size: 9px; padding: 3px 8px; }
+  .bc-band-header { flex-wrap: wrap; }
+}
