@@ -1,5 +1,14 @@
 /**
- * Boomer Counselor - Google Sheets backend (v3)
+ * Boomer Counselor - Google Sheets backend (v3.1)
+ *
+ * v3.1 changes over v3:
+ *   - LockService.getScriptLock wraps doPost so concurrent webhook calls
+ *     don't race on sheet reads and create duplicate session rows.
+ *   - Session logic now uses a 5-minute gap rule: a new tool-use row is
+ *     only created when tool_open fires AND the last event for this
+ *     (email, tool) was >= 5 min ago (or there is no prior row).
+ *     This means rapid successive tool_opens inside the same visit
+ *     correctly update the SAME row instead of inflating row count.
  *
  * Writes every event to TWO sheets:
  * 1) RAW sheet (the spreadsheet this script is bound to) - full raw event log
@@ -124,6 +133,16 @@ function computeCareerMatches(selectedLabels) {
 // Main entry point
 // ============================================================================
 function doPost(e) {
+  // Serialize writes with a document-wide lock so concurrent webhook calls don't
+  // race on session-row lookups and create duplicate rows in the Analytics tabs.
+  const lock = LockService.getScriptLock();
+  try {
+    lock.waitLock(20000); // wait up to 20s
+  } catch (err) {
+    return ContentService
+      .createTextOutput(JSON.stringify({ status: 'error', message: 'Lock timeout: ' + err.toString() }))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
   try {
     const data = JSON.parse(e.postData.contents);
 
@@ -146,12 +165,14 @@ function doPost(e) {
     return ContentService
       .createTextOutput(JSON.stringify({ status: 'error', message: err.toString() }))
       .setMimeType(ContentService.MimeType.JSON);
+  } finally {
+    try { lock.releaseLock(); } catch (e2) {}
   }
 }
 
 function doGet() {
   return ContentService
-    .createTextOutput(JSON.stringify({ status: 'ok', message: 'Boomer Counselor backend v3 alive' }))
+    .createTextOutput(JSON.stringify({ status: 'ok', message: 'Boomer Counselor backend v3.1 alive (lock + session gap)' }))
     .setMimeType(ContentService.MimeType.JSON);
 }
 
@@ -336,34 +357,63 @@ function upsertAnalyticsUser(ass, u, loc, now, tool) {
 
 /**
  * For per-session rows, we use a deterministic "session ID" that increments
- * on every `tool_open` event for a given (email, tool) pair. A tool_open
- * creates a new row; subsequent events for that same session update that
- * row in place.
+ * based on TIME GAPS between events for a given (email, tool) pair.
+ *
+ * A new session is created when:
+ *  - eventType === 'tool_open' AND the last event for this (email, tool)
+ *    was more than 5 minutes ago (or there is no prior event)
+ *  - OR there's simply no prior row at all
+ *
+ * For all other events (tool_filter, link_click, shortlist, etc.), we always
+ * update the MOST RECENT session row for that (email, tool). We never create
+ * new rows from non-open events.
+ *
+ * IMPORTANT: This function assumes the caller has already acquired a script
+ * lock (see doPost LockService wrapper). Without that, concurrent invocations
+ * could still race on the sheet read -> write cycle.
+ *
+ * The sheet schema assumes:
+ *   - col 4 (0-index 3) = email
+ *   - col 1 (0-index 0) = timestamp of last update (ISO string)
+ *   - col 2 (0-index 1) = session ID
  */
+const SESSION_GAP_MS = 5 * 60 * 1000; // 5 minutes
+
 function getOrCreateSession(sheet, email, tool, eventType, now, baseRowBuilder) {
   const data = sheet.getDataRange().getValues();
-  // Scan from bottom up to find the most recent session for this (email, tool)
+  // Scan from bottom up to find the most recent session row for this email
   let lastRow = -1;
+  let lastTimestamp = null;
+  let lastSessionId = 0;
   for (let i = data.length - 1; i >= 1; i--) {
-    if (data[i][3] === email) { lastRow = i + 1; break; }
+    if (data[i][3] === email) {
+      lastRow = i + 1;
+      lastTimestamp = data[i][0];
+      lastSessionId = parseInt(data[i][1]) || 0;
+      break;
+    }
   }
-  // If this is a fresh tool_open, always make a new row
-  if (eventType === 'tool_open' || lastRow === -1) {
-    const newSessionId = computeNewSessionId(data, email);
-    const base = baseRowBuilder(newSessionId);
+
+  // If there is no prior row for this email on this tab, create one
+  if (lastRow === -1) {
+    const base = baseRowBuilder(1);
     sheet.appendRow(base);
     return sheet.getLastRow();
   }
-  return lastRow;
-}
 
-function computeNewSessionId(data, email) {
-  // Session ID = (count of existing sessions for this email) + 1
-  let count = 0;
-  for (let i = 1; i < data.length; i++) {
-    if (data[i][3] === email) count++;
+  // If this is a tool_open event AND there's been a 5+ minute gap, start a new session
+  if (eventType === 'tool_open' && lastTimestamp) {
+    const lastMs = new Date(lastTimestamp).getTime();
+    const nowMs = new Date(now).getTime();
+    if (!isNaN(lastMs) && !isNaN(nowMs) && (nowMs - lastMs) >= SESSION_GAP_MS) {
+      const base = baseRowBuilder(lastSessionId + 1);
+      sheet.appendRow(base);
+      return sheet.getLastRow();
+    }
   }
-  return count + 1;
+
+  // Otherwise update the most recent session row in place
+  return lastRow;
 }
 
 function updateCareerSession(ass, data, u, loc, now) {
