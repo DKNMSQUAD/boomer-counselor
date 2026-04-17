@@ -764,7 +764,7 @@
   }
 
   // Generic event logger — used for sign_in, tool_open, tool_filter, link_click, college_shortlist, tool_close
-  function logEvent(event) {
+  async function logEvent(event) {
     const url = window.BC_CONFIG.SHEETS_WEBHOOK_URL;
     if (!url || url.startsWith('__')) {
       console.log('[BC] Sheets webhook not configured, skipping log.');
@@ -773,6 +773,11 @@
     if (!currentUser) {
       console.log('[BC] No user in session, skipping log.');
       return;
+    }
+    // If location capture is still in flight, wait for it (up to 2s) so
+    // early events like sign_in don't miss the IP/city data.
+    if (!currentLocation && locationPromise) {
+      try { await Promise.race([locationPromise, new Promise(r => setTimeout(r, 2000))]); } catch(e) {}
     }
     const payload = {
       eventType: event.eventType,
@@ -814,30 +819,51 @@
     }).catch(err => console.warn('[BC] log failed', err));
   }
 
-  // Location capture via ipapi.co (free tier, no key needed)
+  // Location capture via geojs.io (free, CORS-enabled, no key needed)
+  // ipapi.co was blocked by CORS from boomercounselor.com
   let currentLocation = null;
+  let locationPromise = null;
   async function captureLocation() {
     try {
-      const r = await fetch('https://ipapi.co/json/');
-      if (!r.ok) return;
+      const r = await fetch('https://get.geojs.io/v1/ip/geo.json');
+      if (!r.ok) throw new Error('geojs returned ' + r.status);
       const d = await r.json();
       currentLocation = {
         ip: d.ip || '',
         city: d.city || '',
         region: d.region || '',
         country_code: d.country_code || '',
-        country_name: d.country_name || '',
-        postal: d.postal || '',
+        country_name: d.country || '',          // geojs uses "country" not "country_name"
+        postal: '',                              // geojs does not return postal
         latitude: d.latitude || null,
         longitude: d.longitude || null,
         timezone: d.timezone || '',
-        org: d.org || '',
+        org: d.organization_name || d.organization || '',  // map ASN org name
       };
     } catch (e) {
-      console.warn('[BC] location fetch failed', e);
+      console.warn('[BC] geojs fetch failed, trying fallback', e);
+      try {
+        const r = await fetch('https://ipapi.co/json/');
+        if (!r.ok) return;
+        const d = await r.json();
+        currentLocation = {
+          ip: d.ip || '',
+          city: d.city || '',
+          region: d.region || '',
+          country_code: d.country_code || '',
+          country_name: d.country_name || '',
+          postal: d.postal || '',
+          latitude: d.latitude || null,
+          longitude: d.longitude || null,
+          timezone: d.timezone || '',
+          org: d.org || '',
+        };
+      } catch (e2) {
+        console.warn('[BC] both geo services failed', e2);
+      }
     }
   }
-  captureLocation();
+  locationPromise = captureLocation();
 
   // Listen for events from iframed tools via postMessage
   window.addEventListener('message', (e) => {
