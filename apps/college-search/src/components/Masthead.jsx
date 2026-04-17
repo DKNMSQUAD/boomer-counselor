@@ -1,22 +1,57 @@
 const Masthead = ({ colleges }) => {
-  const countryCount = new Set(colleges.map((c) => c.region).filter(Boolean)).size;
   const collegeCount = colleges.length;
   return (
-    <header className="app-header" style={{ borderBottom: "2px solid var(--ink)" }}>
-      <div className="masthead-inner">
-        <img src={import.meta.env.BASE_URL + "nm-logo.png"} alt="Boomer Counselor" className="masthead-logo" style={{ objectFit: "contain", flexShrink: 0 }} />
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div className="masthead-title" style={{ fontFamily: "'Playfair Display', serif", fontWeight: 900, lineHeight: 1, letterSpacing: "-1.5px" }}>
-            College Search
+    <header className="app-header" style={{
+      background: '#ffffff',
+      borderBottom: '2.5px solid #1a1a1a',
+      padding: '28px 40px 22px',
+      fontFamily: "'Mulish', system-ui, -apple-system, sans-serif",
+    }}>
+      <div style={{
+        maxWidth: 1400, margin: '0 auto',
+        display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 24,
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 20, minWidth: 0, flex: 1 }}>
+          <img src={import.meta.env.BASE_URL + 'nm-logo.png'} alt='Boomer Counselor' style={{ width: 70, height: 70, borderRadius: '50%', flexShrink: 0, objectFit: 'contain' }} />
+          <div style={{ minWidth: 0 }}>
+            <h1 style={{
+              fontFamily: "'Mulish', system-ui, sans-serif",
+              fontSize: 'clamp(28px, 4vw, 44px)',
+              fontWeight: 900,
+              color: '#1a1a1a',
+              lineHeight: 1.05,
+              letterSpacing: '-0.025em',
+              margin: 0,
+            }}>
+              College Search
+            </h1>
+            <div style={{
+              fontFamily: "'Caveat', cursive",
+              fontSize: 'clamp(18px, 2.2vw, 24px)',
+              fontWeight: 700,
+              color: '#FDB515',
+              lineHeight: 1,
+              marginTop: 4,
+            }}>
+              Find your match.
+            </div>
           </div>
         </div>
-        <div className="masthead-stats" style={{ flexShrink: 0, textAlign: "right", flexDirection: "column", gap: 5 }}>
+        <div style={{ textAlign: 'right', flexShrink: 0 }}>
           {[
-            { val: "9 Regions",                 color: "#9F978C" },
-            { val: collegeCount + " Colleges",  color: "#9F978C" },
-            { val: "1,000s Of Courses",          color: "#9F978C" },
-          ].map(({ val, color }) => (
-            <div key={val} style={{ fontSize: 10, color, letterSpacing: "0.1em", textTransform: "uppercase", fontFamily: "'IBM Plex Mono', monospace", fontWeight: 600 }}>{val}</div>
+            '9 Regions',
+            `${collegeCount} Colleges`,
+            '1,000s of courses',
+          ].map(s => (
+            <div key={s} style={{
+              fontFamily: "'Mulish', system-ui, sans-serif",
+              fontSize: 11,
+              fontWeight: 700,
+              letterSpacing: '0.1em',
+              color: '#666',
+              lineHeight: 2,
+              textTransform: 'uppercase',
+            }}>{s}</div>
           ))}
         </div>
       </div>
