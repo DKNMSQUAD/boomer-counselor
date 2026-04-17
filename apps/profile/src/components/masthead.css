@@ -23,7 +23,7 @@
 .bc-masthead-logo {
   width: 64px;
   height: 64px;
-  border-radius: 50%;
+  /* no container, show png as-is */
   flex-shrink: 0;
   object-fit: contain;
 }
