@@ -1,19 +1,40 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect, useRef } from 'react'
 import Masthead from './components/Masthead'
 import TraitSelector from './components/TraitSelector'
 import CompanyGrid from './components/CompanyGrid'
 import { useSheetData, getMatches } from './hooks/useSheetData'
+import { emitEvent } from './bcEvents'
 import './index.css'
 
 export default function App() {
   const { companies, criteria, loading, error } = useSheetData()
   const [selected, setSelected] = useState([])
+  const debounceRef = useRef(null)
 
   const toggle = id => setSelected(prev =>
     prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
   )
 
   const results = useMemo(() => getMatches(companies, selected, criteria), [companies, selected, criteria])
+
+  // Debounced filter-applied log: fires 1.5s after the user stops toggling
+  useEffect(() => {
+    if (!selected.length) return
+    if (debounceRef.current) clearTimeout(debounceRef.current)
+    debounceRef.current = setTimeout(() => {
+      const labels = selected.map(id => criteria.find(c => c.id === id)?.label).filter(Boolean)
+      emitEvent('tool_filter', {
+        action: 'apply',
+        targetLabel: labels.join(', '),
+        extraData: {
+          selected_criteria: labels,
+          total_selected: selected.length,
+          match_count: results.length,
+        },
+      })
+    }, 1500)
+    return () => { if (debounceRef.current) clearTimeout(debounceRef.current) }
+  }, [selected, results.length, criteria])
 
   if (loading) {
     return (

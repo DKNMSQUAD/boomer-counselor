@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import PaywallModal from "./PaywallModal";
+import { emitEvent } from "../bcEvents";
 
 const PRICE = parseInt(import.meta.env.VITE_REPORT_PRICE || "499", 10);
 const PDF_JS  = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js";
@@ -231,6 +232,17 @@ export default function ReportModal({ college, hasPurchased, onPurchase, onClose
           college={college}
           price={PRICE}
           onSuccess={() => {
+            emitEvent('college_purchase', {
+              action: 'complete',
+              targetId: college.id,
+              targetLabel: college.name,
+              extraData: {
+                college_name: college.name,
+                region: college.region || '',
+                chance: college.chance || '',
+                price: PRICE,
+              },
+            });
             onPurchase(college.id);
             setShowPaywall(false);
           }}

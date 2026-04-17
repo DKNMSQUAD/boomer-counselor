@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import Masthead    from "./components/Masthead";
 import FiltersBar  from "./components/FiltersBar";
 import CollegeGrid from "./components/CollegeGrid";
@@ -8,6 +8,7 @@ import PrivacyPolicy from './components/PrivacyPolicy';
 import TermsOfUse from './components/TermsOfUse';
 import { InstallPrompt } from "./InstallPrompt";
 import { usePurchases }   from "./hooks/usePurchases";
+import { emitEvent } from "./bcEvents";
 
 const SHORTLIST_KEY = "boomer_counselor_shortlist";
 const EMPTY_FILTERS = { major: [], region: [], location: [], size: [], chance: [] };
@@ -27,13 +28,49 @@ function App() {
     try { return JSON.parse(localStorage.getItem(SHORTLIST_KEY) || "[]"); }
     catch { return []; }
   });
+  const filterDebounceRef = useRef(null);
 
   const toggleShortlist = (id) => {
+    const college = colleges.find(c => c.id === id);
+    const wasShortlisted = shortlist.includes(id);
+    if (college) {
+      emitEvent(wasShortlisted ? 'college_shortlist_remove' : 'college_shortlist_add', {
+        action: wasShortlisted ? 'remove' : 'add',
+        targetId: id,
+        targetLabel: college.name,
+        extraData: {
+          college_name: college.name,
+          region: college.region || '',
+          location: college.location || '',
+          chance: college.chance || '',
+          size: college.size || '',
+          shortlist_count_after: wasShortlisted ? shortlist.length - 1 : shortlist.length + 1,
+        },
+      });
+    }
     setShortlist((prev) => {
       const next = prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id];
       localStorage.setItem(SHORTLIST_KEY, JSON.stringify(next));
       return next;
     });
+  };
+
+  // Log report-modal open
+  const openReport = (college) => {
+    if (college) {
+      emitEvent('college_report_view', {
+        action: 'open_modal',
+        targetId: college.id,
+        targetLabel: college.name,
+        extraData: {
+          college_name: college.name,
+          region: college.region || '',
+          chance: college.chance || '',
+          has_purchased: hasPurchased(college.id),
+        },
+      });
+    }
+    setSelected(college);
   };
 
   const applyFilters = (list, f, q) => list.filter((c) => {
@@ -49,6 +86,27 @@ function App() {
   const filtered    = useMemo(() => applyFilters(colleges, filters, search.toLowerCase()),        [colleges, filters, search]);
   const shortlisted = useMemo(() => colleges.filter((c) => shortlist.includes(c.id)),             [colleges, shortlist]);
   const slFiltered  = useMemo(() => applyFilters(shortlisted, slFilters, ""),                     [shortlisted, slFilters]);
+
+  // Debounced filter-applied log: fires 1.5s after user stops changing filters
+  useEffect(() => {
+    const activeCats = Object.entries(filters).filter(([_k, v]) => v.length > 0);
+    if (activeCats.length === 0 && !search.trim()) return;
+    if (filterDebounceRef.current) clearTimeout(filterDebounceRef.current);
+    filterDebounceRef.current = setTimeout(() => {
+      emitEvent('tool_filter', {
+        action: 'apply',
+        targetLabel: activeCats.map(([k, v]) => `${k}:${v.join('|')}`).join(' / '),
+        extraData: {
+          search_query: search,
+          filters_by_category: Object.fromEntries(activeCats),
+          total_filters: activeCats.reduce((sum, [_k, v]) => sum + v.length, 0),
+          match_count: filtered.length,
+          active_tab: activeTab,
+        },
+      });
+    }, 1500);
+    return () => { if (filterDebounceRef.current) clearTimeout(filterDebounceRef.current); };
+  }, [filters, search, filtered.length, activeTab]);
 
   const Tab = ({ id, label, count }) => (
     <button
@@ -105,7 +163,7 @@ function App() {
           <CollegeGrid
             colleges={filtered}
             hasPurchased={hasPurchased}
-            onViewReport={setSelected}
+            onViewReport={openReport}
             shortlist={shortlist}
             onToggleShortlist={toggleShortlist}
             emptyMessage=""
@@ -120,7 +178,7 @@ function App() {
           <CollegeGrid
             colleges={slFiltered}
             hasPurchased={hasPurchased}
-            onViewReport={setSelected}
+            onViewReport={openReport}
             shortlist={shortlist}
             onToggleShortlist={toggleShortlist}
             emptyMessage={shortlisted.length === 0 ? "No colleges shortlisted yet" : ""}

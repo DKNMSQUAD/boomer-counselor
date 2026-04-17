@@ -51,10 +51,10 @@
     }
 
     .logo-slot {
-      margin-bottom: 24px;
+      margin-bottom: 40px;
     }
     .logo-img {
-      width: 320px;
+      width: 360px;
       height: auto;
       display: block;
       transform: rotate(-2deg);
@@ -430,18 +430,17 @@
 
     @media (max-width: 960px) {
       .hero { padding: 32px 20px 20px; }
-      .logo-img { width: 240px; }
+      .logo-img { width: 260px; }
+      .logo-slot { margin-bottom: 32px; }
       .action-row { flex-direction: column; width: 100%; }
       .google-btn { width: 100%; justify-content: center; }
-      .subtitle { max-width: 560px; }
     }
     @media (max-width: 480px) {
       .hero { padding: 24px 16px 72px; }
-      .headline { font-size: 2.1rem; }
-      .subtitle { font-size: 16px; }
       .dropdown-trigger, .google-btn { height: 56px; padding: 14px 18px; font-size: 15px; }
       .hero-footer { font-size: 10px; flex-direction: column; gap: 6px; text-align: center; padding-top: 10px; }
-      .logo-img { width: 190px; }
+      .logo-img { width: 200px; }
+      .logo-slot { margin-bottom: 24px; }
     }
     @media (prefers-reduced-motion: reduce) {
       * { transition: none !important; animation: none !important; }
@@ -456,8 +455,6 @@
   </div>
 
   <div class="content-slot">
-    <h1 class="headline">Boomer Counselor</h1>
-    <p class="subtitle">&hellip;because your future deserves more than guesswork.</p>
 
     <div class="action-row">
       <div class="dropdown-wrap">
@@ -710,6 +707,12 @@
     try { localStorage.setItem('bc_user', JSON.stringify(user)); } catch(e) {}
     showSignedIn(user);
 
+    // Log the sign-in itself as a distinct event
+    logEvent({
+      eventType: 'sign_in',
+      action: 'oauth_success',
+    });
+
     // If they had a tool selected, go to it now
     if (currentOpt) {
       logAndGo(user, currentOpt);
@@ -747,9 +750,12 @@
   }
 
   function logAndGo(user, opt) {
-    // Write to Google Sheets via Apps Script
-    logSelection(user, opt);
-    // Proceed to tool
+    // Existing sign_in + tool_open log
+    logEvent({
+      eventType: 'tool_open',
+      tool: opt.id,
+      selection: { id: opt.id, label: opt.label, url: opt.url, status: opt.url ? 'ready' : 'waitlist' },
+    });
     if (opt.url) {
       openTool(opt);
     } else {
@@ -757,46 +763,97 @@
     }
   }
 
-  function logSelection(user, opt) {
+  // Generic event logger — used for sign_in, tool_open, tool_filter, link_click, college_shortlist, tool_close
+  function logEvent(event) {
     const url = window.BC_CONFIG.SHEETS_WEBHOOK_URL;
     if (!url || url.startsWith('__')) {
       console.log('[BC] Sheets webhook not configured, skipping log.');
       return;
     }
+    if (!currentUser) {
+      console.log('[BC] No user in session, skipping log.');
+      return;
+    }
     const payload = {
-      timestamp: new Date().toISOString(),
+      eventType: event.eventType,
+      timestamp: event.timestamp || new Date().toISOString(),
+      tool: event.tool || '',
+      action: event.action || '',
+      targetId: event.targetId || '',
+      targetLabel: event.targetLabel || '',
+      extraData: event.extraData ? JSON.stringify(event.extraData) : '',
+      // Keep the old selection shape for backward compat on tool_open
+      selection: event.selection || null,
       user: {
-        sub: user.sub,
-        email: user.email,
-        name: user.name,
-        given_name: user.given_name,
-        family_name: user.family_name,
-        picture: user.picture,
-        email_verified: user.email_verified,
-        locale: user.locale
+        sub: currentUser.sub,
+        email: currentUser.email,
+        name: currentUser.name,
+        given_name: currentUser.given_name,
+        family_name: currentUser.family_name,
+        picture: currentUser.picture,
+        email_verified: currentUser.email_verified,
+        locale: currentUser.locale,
       },
-      selection: {
-        id: opt.id,
-        label: opt.label,
-        url: opt.url,
-        status: opt.url ? 'ready' : 'waitlist'
-      },
+      location: currentLocation || null,
       meta: {
         referrer: document.referrer || '',
         user_agent: navigator.userAgent,
         language: navigator.language,
+        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
         screen: `${screen.width}x${screen.height}`,
-        page_url: location.href
-      }
+        viewport: `${window.innerWidth}x${window.innerHeight}`,
+        device_type: /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent) ? 'mobile' : 'desktop',
+        page_url: location.href,
+      },
     };
-    // no-cors mode - Apps Script doesn't return CORS headers, so we fire-and-forget
     fetch(url, {
       method: 'POST',
       mode: 'no-cors',
       headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body: JSON.stringify(payload)
+      body: JSON.stringify(payload),
     }).catch(err => console.warn('[BC] log failed', err));
   }
+
+  // Location capture via ipapi.co (free tier, no key needed)
+  let currentLocation = null;
+  async function captureLocation() {
+    try {
+      const r = await fetch('https://ipapi.co/json/');
+      if (!r.ok) return;
+      const d = await r.json();
+      currentLocation = {
+        ip: d.ip || '',
+        city: d.city || '',
+        region: d.region || '',
+        country_code: d.country_code || '',
+        country_name: d.country_name || '',
+        postal: d.postal || '',
+        latitude: d.latitude || null,
+        longitude: d.longitude || null,
+        timezone: d.timezone || '',
+        org: d.org || '',
+      };
+    } catch (e) {
+      console.warn('[BC] location fetch failed', e);
+    }
+  }
+  captureLocation();
+
+  // Listen for events from iframed tools via postMessage
+  window.addEventListener('message', (e) => {
+    if (e.origin !== window.location.origin) return;
+    const d = e.data;
+    if (!d || d.type !== 'bc-event') return;
+    // Log with the user context the hub holds
+    logEvent({
+      eventType: d.name || 'tool_event',
+      tool: d.tool || '',
+      action: d.action || '',
+      targetId: d.targetId || '',
+      targetLabel: d.targetLabel || '',
+      extraData: d.extraData || null,
+    });
+  });
 
   function openTool(opt) {
     // Hard gate: no tool opens without a signed-in user
@@ -816,6 +873,11 @@
   }
 
   function backToHome() {
+    // Log that user closed the tool
+    const toolTitle = document.getElementById('toolTitle').textContent;
+    if (toolTitle) {
+      logEvent({ eventType: 'tool_close', tool: toolTitle });
+    }
     document.querySelector('.hero').scrollIntoView({ behavior: 'smooth', block: 'start' });
     setTimeout(() => {
       document.getElementById('toolSection').classList.remove('active');

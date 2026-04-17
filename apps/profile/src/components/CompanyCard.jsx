@@ -1,9 +1,24 @@
+import { emitEvent } from '../bcEvents'
+
 export default function CompanyCard({ company, criteria, selectedCriteria }) {
   const hasSelected = selectedCriteria.length > 0
   const matchedCriteria = criteria.filter(t => company.traits.includes(t.id) && selectedCriteria.includes(t.id))
   const otherCriteria = criteria.filter(t => company.traits.includes(t.id) && !selectedCriteria.includes(t.id))
   const hasWebsite = company.website && company.website.toLowerCase() !== 'no website' && company.website !== ''
   const scoreColor = company.score >= 80 ? '#16a34a' : company.score >= 50 ? '#d97706' : '#6b7280'
+
+  const handleClick = () => {
+    emitEvent('link_click', {
+      action: 'open',
+      targetId: company.id,
+      targetLabel: company.name,
+      extraData: {
+        company_name: company.name,
+        company_url: company.website,
+        had_filters: hasSelected,
+      },
+    })
+  }
 
   const cardStyle = {
     background: '#fff', border: '1px solid #d9d0c0', borderRadius: 2,
@@ -54,7 +69,7 @@ export default function CompanyCard({ company, criteria, selectedCriteria }) {
 
   if (hasWebsite) {
     return (
-      <a href={company.website} target="_blank" rel="noopener noreferrer" style={cardStyle}
+      <a href={company.website} target="_blank" rel="noopener noreferrer" onClick={handleClick} style={cardStyle}
         onMouseEnter={e => e.currentTarget.style.boxShadow = '0 2px 12px rgba(0,0,0,0.1)'}
         onMouseLeave={e => e.currentTarget.style.boxShadow = 'none'}>
         {inner}
