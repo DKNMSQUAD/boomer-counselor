@@ -13,7 +13,7 @@ export default function App() {
     prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
   )
 
-  const results = useMemo(() => getMatches(companies, selected), [companies, selected])
+  const results = useMemo(() => getMatches(companies, selected, criteria), [companies, selected, criteria])
 
   if (loading) {
     return (
