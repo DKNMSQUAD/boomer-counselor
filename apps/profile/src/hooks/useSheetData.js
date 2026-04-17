@@ -44,8 +44,9 @@ export function useSheetData() {
             const website = (row[2] || '').toString().trim()
             const traits = parsedCriteria
               .filter((c, i) => {
-                const val = (row[3 + i] || '').toString().trim().toLowerCase()
-                return val === 'yes'
+                const val = (row[3 + i] || '').toString().trim()
+                // Sheet puts column-name as cell value when criterion applies, empty when it doesn't
+                return val !== ''
               })
               .map(c => c.id)
             return { id: `company-${ri}`, name, logo, website, traits }
