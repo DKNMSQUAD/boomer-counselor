@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import Masthead from './components/Masthead';
 import TraitSelector from './components/TraitSelector';
 import CareerGrid from './components/CareerGrid';
@@ -8,16 +8,9 @@ import './index.css';
 
 export default function App() {
   const [selected, setSelected] = useState([]);
+  const debounceRef = useRef(null);
   const toggle = id => {
-    const trait = TRAITS.find(t => t.id === id);
-    const wasSelected = selected.includes(id);
-    emitEvent('tool_filter', {
-      action: wasSelected ? 'remove' : 'add',
-      targetId: id,
-      targetLabel: trait?.label || id,
-      extraData: { filterType: 'trait' },
-    });
-    setSelected(prev => wasSelected ? prev.filter(x => x !== id) : [...prev, id]);
+    setSelected(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
   };
   const onClear = () => {
     if (selected.length > 0) {
@@ -26,6 +19,27 @@ export default function App() {
     setSelected([]);
   };
   const results = useMemo(() => getMatches(selected), [selected]);
+
+  // Debounced filter-applied log: fires 1.5s after the user stops toggling traits.
+  // Sends the FULL set of currently selected trait labels so the Analytics sheet
+  // can compute career matches server-side in one go.
+  useEffect(() => {
+    if (!selected.length) return;
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => {
+      const labels = selected.map(id => TRAITS.find(t => t.id === id)?.label).filter(Boolean);
+      emitEvent('tool_filter', {
+        action: 'apply',
+        targetLabel: labels.join(', '),
+        extraData: {
+          selected_traits: labels,
+          total_selected: selected.length,
+          match_count: results.length,
+        },
+      });
+    }, 1500);
+    return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
+  }, [selected, results.length]);
 
   return (
     <div style={{ minHeight: '100vh', background: '#fafaf8' }}>
