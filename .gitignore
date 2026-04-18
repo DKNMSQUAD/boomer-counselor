@@ -22,3 +22,4 @@ yarn-debug.log*
 *.swp
 
 # Note: apps/*/dist/ IS committed intentionally (pre-built bundles served by Netlify)
+.obsidian/
