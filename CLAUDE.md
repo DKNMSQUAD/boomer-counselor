@@ -77,3 +77,42 @@ College Search: Firebase config reads VITE_FIREBASE_* env vars at build time (se
 - Split the repo into multiple repos. Monorepo is deliberate.
 - Rename or move apps/<tool>/dist/ paths.
 - Commit .env or Firebase/Razorpay secrets.
+
+
+## 11. Mac automation capabilities
+
+You are running on DK's MacBook Air (Apple Silicon). You have FULL access to the Mac via shell commands. Use this power.
+
+### osascript
+You can run `osascript -e '...'` to control any Mac app. Examples:
+- Open URLs: `open https://boomercounselor.com`
+- Control Terminal: `osascript -e 'tell application "Terminal" to do script "..."'`
+- Control Finder, browsers, any app
+- Run AppleScript for any Mac automation
+
+### Browser testing
+To open and test the site: `open https://boomercounselor.com`
+To open specific tools: `open https://boomercounselor.com/careers/`
+You can open URLs directly. You cannot interact with browser UI (click buttons, fill forms), but you can open pages for DK to see.
+
+### System commands
+You have full shell access. You can:
+- Run any bash command
+- Install packages via npm/pip/brew
+- Access the filesystem
+- Run git operations
+- Start dev servers
+- Run builds
+- Kill processes
+- Check logs
+- Anything DK asks
+
+### What you actually cannot do
+- You cannot see the screen or take screenshots
+- You cannot click UI elements in apps
+- You cannot type into GUI windows
+- You cannot do OAuth flows (DK handles those)
+- If DK asks you to do something that needs visual interaction, open the relevant URL/app and tell DK what to do in that window
+
+### Default behavior
+When DK says "test it" or "check the site", open the URL in the browser so DK can see it. Do not say you cannot access websites.
