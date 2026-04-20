@@ -132,7 +132,7 @@ function App() {
 
   if (loading) return (
     <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center" }}>
-      <img src={import.meta.env.BASE_URL + "nm-logo.png"} alt="Boomer Counselor" style={{ height: 80, width: 80, objectFit: "contain", opacity: 0.7, animation: "pulse 1.5s ease-in-out infinite" }} />
+      <img src={import.meta.env.BASE_URL + "bc-logo.png"} alt="Boomer Counselor" style={{ height: 80, width: 80, objectFit: "contain", opacity: 0.7, animation: "pulse 1.5s ease-in-out infinite" }} />
     </div>
   );
 

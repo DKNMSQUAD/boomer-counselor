@@ -6,7 +6,7 @@ const Masthead = ({ colleges }) => {
     <header className="bc-masthead">
       <div className="bc-masthead-inner">
         <div className="bc-masthead-left">
-          <img className="bc-masthead-logo" src={import.meta.env.BASE_URL + 'nm-logo.png'} alt='Boomer Counselor' />
+          <img className="bc-masthead-logo" src={import.meta.env.BASE_URL + 'bc-logo.png'} alt='Boomer Counselor' />
           <div className="bc-masthead-titles">
             <h1 className="bc-masthead-title">College Search</h1>
             <div className="bc-masthead-tagline">Find your match.</div>
