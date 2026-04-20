@@ -1,7 +1,8 @@
 ---
 type: hot-cache
-updated: 2026-04-18 16:27
+updated: 2026-04-18 22:00
 ---
+
 # Hot Cache
 
 Recent context for session continuity.
@@ -9,15 +10,29 @@ Recent context for session continuity.
 ## Current State
 - All 3 tools live at boomercounselor.com
 - Rebrand from NM Squad complete
-- Hub uses Google Sign-In + Apps Script for analytics
-- College Search has Razorpay paywall + Firebase backend
-- Career Discovery debounced analytics events (latest fix)
-- Known UX issue: double masthead when tools loaded in hub iframe
+- Analytics v3.1 deployed (Version 5, Apr 18 2026)
+  - Dual-sheet writes: RAW (Users+Events) + ANALYTICS (4 human-friendly tabs)
+  - LockService serialization prevents duplicate rows
+  - 5-min session gap rule for new tool-use rows
+  - Career Discovery debounced trait emit with full selected_traits array (fixed Apr 18)
+  - Server-side career match computation with % scores
+  - Profile criteria auto-bucketed into 4 categories
+  - College shortlist add/remove maintained as running list
+- Hub capitalization fixed: "Boomer Counselor" (not "boomer counselor")
+- IP geolocation: geojs.io primary (ipapi.co CORS-blocked)
 
 ## Active Work
 - Project transferred to Claude Code workflow (April 18, 2026)
-- CLAUDE.md added to repo for Claude Code context
-- Obsidian vault set up for wiki-based knowledge management
+- CLAUDE.md in repo for Claude Code context
+- Obsidian vault for wiki-based knowledge management
+- All analytics verified via full E2E test (Priya Sharma test user)
+
+## Key URLs
+- Live site: https://boomercounselor.com
+- RAW Sheet: https://docs.google.com/spreadsheets/d/1oCj_MVwTsYkS1HXNKwMZcsSaRCWXdCOQO3qW-yaqLq0/edit
+- Analytics Sheet: https://docs.google.com/spreadsheets/d/1eyuxEbFsiEBgO9EjiCnbBGy1fpIK2uHws6FEW01iZuk/edit
+- Apps Script: https://script.google.com/home/projects/16IgPxqH1NZ4cciuvwVSPpBFj7INKxkcB5EI4G9A8Jm5LU-MUbMJ2J3Av/edit
+- GitHub: https://github.com/DKNMSQUAD/boomer-counselor
 
 ## Stack
 - Hub: static HTML/CSS/JS (no framework)

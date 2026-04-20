@@ -116,3 +116,47 @@ You have full shell access. You can:
 
 ### Default behavior
 When DK says "test it" or "check the site", open the URL in the browser so DK can see it. Do not say you cannot access websites.
+
+## 12. Analytics system (v3.1, deployed Apr 18 2026)
+
+Every user action writes to TWO Google Sheets in real time:
+
+### RAW sheet (Boomer Counselor Users)
+- Sheet ID: 1oCj_MVwTsYkS1HXNKwMZcsSaRCWXdCOQO3qW-yaqLq0
+- Users tab: one row per unique user (25 cols, keyed on google_id)
+- Events tab: one row per event (30 cols, full detail)
+
+### ANALYTICS sheet (Boomer Counselor Analytics)
+- Sheet ID: 1eyuxEbFsiEBgO9EjiCnbBGy1fpIK2uHws6FEW01iZuk
+- Users Overview: one row per user (First/Last seen, Name, Email, Picture, City, Region, Country, IP, Total events, Tools used, Last active tool)
+- Career Discovery: one row per tool-use session (Timestamp, Session ID, Name, Email, City, Country, Final traits selected, Matched careers with % scores)
+- Profile Builder: one row per tool-use session (Timestamp, Session ID, Name, Email, City, Country, I am, I am interested in, I am looking for, Location preference, Programs clicked)
+- College Search: one row per tool-use session (Timestamp, Session ID, Name, Email, City, Country, Filters used, Colleges shortlisted, Reports viewed, Reports purchased)
+
+### Apps Script (v3.1, Version 5)
+- Project: https://script.google.com/home/projects/16IgPxqH1NZ4cciuvwVSPpBFj7INKxkcB5EI4G9A8Jm5LU-MUbMJ2J3Av/edit
+- Webhook: https://script.google.com/macros/s/AKfycbyGquSlw0PqDyyn3HzUAKovwOxz3bw1iBIUtIxjMFYkCp_xSz58vP3E7LLX9ni6Gu4j/exec
+- Owner: dknmsquad@gmail.com
+- LockService.getScriptLock wraps doPost to prevent race conditions
+- Session gap rule: new row only when tool_open AND last event >= 5 min ago
+- 25 careers with trait arrays embedded for server-side match computation
+- TRAIT_LABEL_TO_ID map converts labels to IDs
+- PROFILE_GROUPS constant auto-buckets criteria into 4 categories
+
+### Event flow
+1. Tool app calls emitEvent(name, payload) via bcEvents.js -> postMessage to hub
+2. Hub logEvent() awaits locationPromise (geojs.io, 2s timeout)
+3. Hub POSTs JSON to Apps Script webhook
+4. Apps Script writes to both RAW and ANALYTICS sheets under LockService lock
+
+### Event format per tool
+- Career Discovery: debounced 1.5s, sends extraData.selected_traits (full label array). Apps Script computes career matches server-side.
+- Profile Builder: debounced 1.5s, sends extraData.selected_criteria (full label array). Apps Script auto-buckets into iAm/interested/looking/location groups. link_click events append program names.
+- College Search: debounced 1.5s, sends extraData.filters_by_category (object). Shortlist add/remove maintained as running list. Report views and purchases appended.
+
+### To redeploy Apps Script
+1. Edit apps-script.gs in repo
+2. Open Apps Script editor in browser
+3. Inject via Monaco API: monaco.editor.getEditors()[0].setValue(code)
+4. Cmd+S to save
+5. Deploy > Manage deployments > pencil > New version > Deploy
