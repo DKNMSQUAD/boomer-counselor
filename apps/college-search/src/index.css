@@ -16,6 +16,70 @@
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
+/* ── Shared grouped filter bar (mirrors Profile Builder) ─────────────── */
+.bc-filters {
+  background: #eee8d9;
+  border-bottom: 2px solid #1a1a1a;
+  font-family: "IBM Plex Mono", system-ui, -apple-system, sans-serif;
+  position: sticky; top: 0; z-index: 90;
+}
+.bc-filters-inner { max-width: 1400px; margin: 0 auto; padding: 14px 32px 20px; }
+.bc-filters-status {
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 0 14px; border-bottom: 1px solid #c8bfa8;
+  margin-bottom: 12px;
+}
+.bc-filters-search {
+  flex: 1; max-width: 420px; position: relative;
+}
+.bc-filters-search input {
+  width: 100%; padding: 7px 14px 7px 30px;
+  border: 1px solid #c8bfa8; background: #faf7f2;
+  color: #1a1a1a; font-family: inherit; font-size: 11px; outline: none;
+  border-radius: 3px;
+}
+.bc-filters-search input:focus { border-color: #1a1a1a; }
+.bc-filters-search .bc-search-icon {
+  position: absolute; left: 10px; top: 50%; transform: translateY(-50%);
+  color: #888; pointer-events: none; font-size: 14px;
+}
+.bc-filters-statusText { font-size: 12px; color: #666; letter-spacing: 0.02em; }
+.bc-filters-clear {
+  margin-left: auto; font-family: inherit; font-size: 10px; font-weight: 700;
+  background: none; border: 1px solid #c8bfa8; border-radius: 3px;
+  padding: 5px 12px; color: #666; letter-spacing: 0.08em;
+  cursor: pointer; text-transform: uppercase;
+}
+.bc-filters-clear:hover { background: #1a1a1a; color: #fff; border-color: #1a1a1a; }
+.bc-filters-group {
+  display: grid; grid-template-columns: minmax(0, 200px) 1fr;
+  gap: 16px; align-items: start; padding: 10px 0;
+}
+.bc-filters-group + .bc-filters-group { border-top: 1px dashed #d4c9b8; }
+.bc-filters-grouplabel {
+  font-family: 'Playfair Display', serif; font-size: 15px;
+  font-weight: 700; font-style: italic; color: #1a1a1a;
+  padding-top: 6px; letter-spacing: -0.01em;
+}
+.bc-filters-pills { display: flex; flex-wrap: wrap; gap: 7px; }
+.bc-filter-pill {
+  display: inline-flex; align-items: center; gap: 7px;
+  padding: 6px 14px; border: 1.5px solid transparent; border-radius: 3px;
+  background: transparent; color: #444; font-family: inherit;
+  font-size: 11px; font-weight: 700; letter-spacing: 0.08em;
+  text-transform: uppercase; cursor: pointer;
+  transition: transform 0.12s ease, background 0.12s ease, border-color 0.12s ease;
+}
+.bc-filter-pill:hover { transform: translateY(-1px); }
+.bc-filter-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+@media (max-width: 720px) {
+  .bc-filters-inner { padding: 12px 16px 16px; }
+  .bc-filters-group { grid-template-columns: 1fr; gap: 8px; padding: 10px 0; }
+  .bc-filters-grouplabel { padding-top: 0; font-size: 14px; }
+  .bc-filter-pill { font-size: 10px; padding: 5px 11px; }
+  .bc-filters-status { flex-wrap: wrap; padding: 6px 0 10px; }
+}
+
 body {
   background: var(--bg);
   color: var(--ink);
