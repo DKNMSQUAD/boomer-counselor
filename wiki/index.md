@@ -29,11 +29,10 @@ Master catalog for Boomer Counselor knowledge base.
 ## Codebase
 - [[Architecture]] - Monorepo with hub + 3 React/Vite sub-apps
 - [[Deploy Pipeline]] - Push to main, Netlify auto-deploys
-- [[Branding Rules]] - Boomer Counselor, no NM Squad references
+- [[Branding Rules]] - Boomer Counselor
 - [[Hub index.html]] - BC_CONFIG, Google OAuth, iframe gating, tool_open events
 
 ## Decisions
-- [[Rebranding from NM Squad]] - Full rebrand completed April 2026
 - [[Analytics v3 Dual Sheet]] - Separate human-friendly Analytics sheet (April 2026)
 - [[LockService Fix]] - Serialized writes to prevent duplicate session rows (April 2026)
 - [[Career Debounce Fix]] - Changed from per-toggle to debounced full-array emit (April 2026)

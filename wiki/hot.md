@@ -9,7 +9,6 @@ Recent context for session continuity.
 
 ## Current State
 - All 3 tools live at boomercounselor.com
-- Rebrand from NM Squad complete
 - Analytics v3.1 deployed (Version 5, Apr 18 2026)
   - Dual-sheet writes: RAW (Users+Events) + ANALYTICS (4 human-friendly tabs)
   - LockService serialization prevents duplicate rows
