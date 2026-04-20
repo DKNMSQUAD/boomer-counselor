@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-    <string name="app_name">College Search</string>
-    <string name="title_activity_main">College Search</string>
-    <string name="package_name">com.boomercounselor.collegesearch</string>
-    <string name="custom_url_scheme">com.boomercounselor.collegesearch</string>
+    <string name="app_name">Boomer Counselor</string>
+    <string name="title_activity_main">Boomer Counselor</string>
+    <string name="package_name">com.boomercounselor.app</string>
+    <string name="custom_url_scheme">com.boomercounselor.app</string>
 </resources>

@@ -1,4 +1,8 @@
-# Store Listing — Boomer Counselor: College Search
+# Store Listing — Boomer Counselor
+
+Bundle ID: `com.boomercounselor.app` (iOS + Android).
+The native app is the full Boomer Counselor hub with three tools inside:
+Career Discovery, Profile Builder, and College Search.
 
 Use this file as the source of truth for App Store Connect + Play Console copy.
 All character counts checked against Apple/Google limits.
@@ -24,45 +28,49 @@ All character counts checked against Apple/Google limits.
 
 ### Name (30 chars max)
 ```
-Boomer Counselor: Colleges
+Boomer Counselor
 ```
-(25 chars)
+(16 chars)
 
 ### Subtitle (30 chars max)
 ```
-Find and shortlist colleges
+Your college counselor, in-app
 ```
-(27 chars)
+(30 chars)
 
 ### Promotional Text (170 chars max, editable without resubmit)
 ```
-Browse 100+ colleges, filter by major, region, size, and admit chance. Save a shortlist offline. Read intelligence reports. Share picks with parents and counselors.
+Three tools in one app: discover careers that fit you, build your student profile, and shortlist colleges with intelligence reports. Share picks with parents.
 ```
-(166 chars)
+(163 chars)
 
 ### Description (4000 chars max)
 ```
-Boomer Counselor helps students research, shortlist, and compare colleges in one clean workspace.
+Boomer Counselor is a college-counseling companion for high-school students, parents, and independent counselors. Three tools in one native app.
 
-WHY STUDENTS USE IT
-Applying to college means juggling dozens of websites, spreadsheets, and PDFs. Boomer Counselor brings it all together in a single native app built for high-school students, parents, and counselors.
+WHAT'S INSIDE
 
-FEATURES
-- Curated college database with logos, regions, majors, admit-chance signals
-- Multi-filter search: major, region, size, location, chance-of-admission
-- One-tap shortlist that lives on your device, even without internet
-- Full Intelligence Reports: admission insights, academic strengths, application strategy, cultural fit
+1. Career Discovery
+Answer a short trait-based quiz and see which careers match how you think and work. Explore strengths, typical paths, and sample roles.
+
+2. Profile Builder
+Tell us who you are, what you're interested in, and what you're looking for. Get a tailored shortlist of college programs and extracurriculars to target.
+
+3. College Search
+Browse a curated database of colleges with filters for major, region, size, location, and admit chance. Open a full Intelligence Report with admission insights, academic strengths, application strategy, and cultural fit. Save a shortlist that lives offline on your device.
+
+MORE FEATURES
 - Native share sheet: send a report or a college link to a parent or counselor instantly
 - Offline-first shortlist storage
 - Clean editorial design, no ads, no tracking
 
 WHO IT'S FOR
-- Students in grades 10-12 building a college list
-- Parents helping with college research
+- Students in grades 9-12 building a college list
+- Parents helping with research and conversations
 - Independent counselors and school advisors working with multiple students
 
 PRIVACY
-We do not sell your data. We do not show ads. Reports and shortlists are free. You can delete your data any time by emailing hello@boomercounselor.com.
+We do not sell your data. We do not show ads. Every tool is free. You can delete your data any time by emailing hello@boomercounselor.com.
 
 SUPPORT
 hello@boomercounselor.com
@@ -73,13 +81,13 @@ Made by Boomer Counselor, an independent college-counseling studio.
 
 ### Keywords (100 chars max, comma-separated)
 ```
-college,university,admissions,counselor,shortlist,student,education,school,sat,applications,report
+college,career,counselor,admissions,student,education,quiz,shortlist,profile,university,applications
 ```
-(98 chars)
+(100 chars)
 
 ### What's New (for version 1.0)
 ```
-First release. Browse colleges, build a shortlist, open intelligence reports, share with parents or counselors.
+First release. Career Discovery quiz, Profile Builder, and a College Search with offline shortlist and full Intelligence Reports.
 ```
 
 ### App Review Information
@@ -89,9 +97,11 @@ First release. Browse colleges, build a shortlist, open intelligence reports, sh
 - **Sign-in required?** No (the iOS build opens directly to the college list; no login gate).
 - **Notes**:
   ```
-  No login is required. Open the app, tap any college card, tap "View Report"
-  to see the full Intelligence Report, tap "Share" to exercise the native
-  share sheet. Shortlist state persists offline.
+  No login is required on iOS. Open the app, tap the dropdown to pick one of
+  the three tools (Career Discovery, Profile Builder, College Search). In
+  College Search, tap a college card, then "View Report" to see the full
+  Intelligence Report, and "Share" to exercise the native share sheet.
+  Shortlist state persists offline.
   ```
 
 ### App Privacy (App Store Connect questionnaire)
@@ -140,33 +150,37 @@ Boomer Counselor: Colleges
 
 ### Short description (80 chars max)
 ```
-Shortlist colleges, read intelligence reports, share picks with your counselor.
+Career quiz, profile builder, and college search. Three tools in one app.
 ```
-(79 chars)
+(73 chars)
 
 ### Full description (4000 chars max)
 ```
-Boomer Counselor helps students research, shortlist, and compare colleges in one clean workspace.
+Boomer Counselor is a college-counseling companion for high-school students, parents, and independent counselors. Three tools in one native Android app.
 
-WHY STUDENTS USE IT
-Applying to college means juggling dozens of websites, spreadsheets, and PDFs. Boomer Counselor brings it all together in a single native Android app built for high-school students, parents, and counselors.
+WHAT'S INSIDE
 
-FEATURES
-• Curated college database with logos, regions, majors, and admit-chance signals
-• Multi-filter search: major, region, size, location, chance of admission
-• One-tap shortlist that lives on your device, even without internet
-• Full Intelligence Reports: admission insights, academic strengths, application strategy, cultural fit
+1. Career Discovery
+Answer a short trait-based quiz and see which careers match how you think and work. Explore strengths, typical paths, and sample roles.
+
+2. Profile Builder
+Tell us who you are, what you're interested in, and what you're looking for. Get a tailored shortlist of college programs and extracurriculars to target.
+
+3. College Search
+Browse a curated database of colleges with filters for major, region, size, location, and admit chance. Open a full Intelligence Report with admission insights, academic strengths, application strategy, and cultural fit. Save a shortlist that lives offline on your device.
+
+MORE FEATURES
 • Native share: send a report or a college link to a parent or counselor instantly
 • Offline-first shortlist storage
 • Clean editorial design, no ads, no tracking
 
 WHO IT'S FOR
-• Students in grades 10-12 building a college list
-• Parents helping with college research
+• Students in grades 9-12 building a college list
+• Parents helping with research and conversations
 • Independent counselors and school advisors working with multiple students
 
 PRIVACY
-We do not sell your data. We do not show ads. Reports and shortlists are free. You can delete your data any time by emailing hello@boomercounselor.com.
+We do not sell your data. We do not show ads. Every tool is free. You can delete your data any time by emailing hello@boomercounselor.com.
 
 SUPPORT
 hello@boomercounselor.com

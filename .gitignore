@@ -24,3 +24,6 @@ yarn-debug.log*
 # Note: apps/*/dist/ IS committed intentionally (pre-built bundles served by Netlify)
 .obsidian/
 .obsidian/
+
+# Native build output (assembled from hub + tool dists, not web-served)
+dist-native/

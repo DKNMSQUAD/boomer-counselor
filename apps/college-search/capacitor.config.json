@@ -1,7 +1,7 @@
 {
-  "appId": "com.boomercounselor.collegesearch",
-  "appName": "College Search",
-  "webDir": "dist",
+  "appId": "com.boomercounselor.app",
+  "appName": "Boomer Counselor",
+  "webDir": "../../dist-native",
   "server": {
     "androidScheme": "https"
   },

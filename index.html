@@ -597,16 +597,33 @@
     }
   }
 
+  // On native (Capacitor) we skip Google Sign-In — treat the user as anonymous
+  // and open the tool directly. Keeps web sign-in behavior untouched.
+  const IS_NATIVE = !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
+  if (IS_NATIVE) {
+    signin.disabled = true;
+    signin.style.display = 'none';
+  }
+
   signin.addEventListener('click', () => {
     if (!currentOpt) return;
     if (currentUser) {
-      // Already signed in - log this selection and go
       logAndGo(currentUser, currentOpt);
     } else {
-      // Trigger Google Sign-In popup
       promptGoogleSignIn();
     }
   });
+
+  // Native: selecting an option opens the tool immediately (no auth gate).
+  if (IS_NATIVE) {
+    const origSelect = selectOption;
+    selectOption = function(opt) {
+      origSelect(opt);
+      if (opt && opt.url) {
+        logAndGo({ sub: 'native-anon', email: '', name: 'Guest', picture: '' }, opt);
+      }
+    };
+  }
 
   // ===== GOOGLE SIGN-IN =====
   function onGoogleLibraryLoad() {

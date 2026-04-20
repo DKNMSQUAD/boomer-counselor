@@ -1,4 +1,4 @@
-package com.boomercounselor.collegesearch;
+package com.boomercounselor.app;
 
 import com.getcapacitor.BridgeActivity;
 
