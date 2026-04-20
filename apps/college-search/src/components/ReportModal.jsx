@@ -1,4 +1,6 @@
 import { useEffect, useState } from "react";
+import { Share } from "@capacitor/share";
+import { Capacitor } from "@capacitor/core";
 
 const PDF_JS  = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js";
 const PDF_WKR = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
@@ -91,9 +93,37 @@ export default function ReportModal({ college, onClose }) {
               Intelligence Report{totalPages ? " \u2014 " + totalPages + " pages" : ""}
             </div>
           </div>
-          <button onClick={onClose} style={{ background: "none", border: "1px solid var(--border)", color: "var(--muted)", width: 32, height: 32, cursor: "pointer", fontSize: 20, lineHeight: 1, display: "flex", alignItems: "center", justifyContent: "center" }}>
-            &times;
-          </button>
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            {college.reportUrl && (
+              <button
+                onClick={async () => {
+                  const payload = {
+                    title: college.name + " \u2014 Intelligence Report",
+                    text: "Check out the " + college.name + " report on Boomer Counselor.",
+                    url: college.reportUrl,
+                    dialogTitle: "Share report",
+                  };
+                  try {
+                    if (Capacitor.isNativePlatform()) {
+                      await Share.share(payload);
+                    } else if (navigator.share) {
+                      await navigator.share(payload);
+                    } else {
+                      await navigator.clipboard.writeText(payload.url);
+                      alert("Link copied to clipboard.");
+                    }
+                  } catch (e) { /* user cancelled */ }
+                }}
+                style={{ background: "none", border: "1px solid var(--border)", color: "var(--muted)", height: 32, padding: "0 12px", cursor: "pointer", fontSize: 10, fontFamily: "'IBM Plex Mono', monospace", letterSpacing: "0.08em", textTransform: "uppercase" }}
+                title="Share report"
+              >
+                Share
+              </button>
+            )}
+            <button onClick={onClose} style={{ background: "none", border: "1px solid var(--border)", color: "var(--muted)", width: 32, height: 32, cursor: "pointer", fontSize: 20, lineHeight: 1, display: "flex", alignItems: "center", justifyContent: "center" }}>
+              &times;
+            </button>
+          </div>
         </div>
 
         <div style={{ overflowY: "auto", flex: 1 }}>
