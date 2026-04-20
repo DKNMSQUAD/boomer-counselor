@@ -53,3 +53,81 @@ button { cursor: pointer; font-family: inherit; }
   .bc-filter-pill { font-size: 10px; padding: 5px 11px; }
   .bc-filters-status { flex-wrap: wrap; padding: 6px 0 10px; }
 }
+
+/* ── Shared result card ─────────────────────────────────── */
+.bc-grid {
+  display: grid; gap: 14px;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  padding: 22px 32px 40px; max-width: 1400px; margin: 0 auto;
+}
+.bc-card {
+  background: #fff; border: 1px solid #d9d0c0; border-radius: 2px;
+  padding: 18px 20px 16px; display: flex; flex-direction: column; gap: 10px;
+  transition: box-shadow 0.15s, transform 0.12s;
+  color: inherit; text-decoration: none; position: relative;
+  border-left-width: 4px;
+}
+.bc-card:hover { box-shadow: 0 2px 12px rgba(0,0,0,0.08); transform: translateY(-1px); }
+.bc-card-top { display: flex; align-items: flex-start; gap: 12px; }
+.bc-card-logo {
+  width: 44px; height: 44px; flex-shrink: 0;
+  border: 1px solid #e8e0ce; background: #fafaf8; border-radius: 4px;
+  display: flex; align-items: center; justify-content: center;
+  overflow: hidden; padding: 3px;
+}
+.bc-card-logo img { max-width: 100%; max-height: 100%; object-fit: contain; }
+.bc-card-logo-fallback {
+  font-family: 'Playfair Display', serif; font-size: 16px; font-weight: 800; color: #b5a98a;
+}
+.bc-card-heading { flex: 1; min-width: 0; }
+.bc-card-title {
+  font-family: 'Playfair Display', serif; font-size: 18px; font-weight: 800;
+  color: #1a1a1a; line-height: 1.2; margin: 0;
+}
+.bc-card-subtitle {
+  font-family: 'IBM Plex Mono', monospace; font-size: 9px;
+  color: #8a7f72; letter-spacing: 0.06em; text-transform: uppercase;
+  margin-top: 3px;
+}
+.bc-card-badge {
+  font-family: 'IBM Plex Mono', monospace; font-size: 9px;
+  letter-spacing: 0.07em; text-transform: uppercase;
+  padding: 3px 8px; border-radius: 2px; border: 1px solid currentColor;
+  white-space: nowrap; flex-shrink: 0; font-weight: 700;
+}
+.bc-card-progress {
+  height: 3px; background: #f0ece4; border-radius: 2px; overflow: hidden;
+}
+.bc-card-progress-fill { height: 100%; transition: width 0.3s; }
+.bc-card-meta {
+  font-family: 'IBM Plex Mono', monospace; font-size: 9px;
+  color: #8a7f72; letter-spacing: 0.06em;
+}
+.bc-card-pills { display: flex; flex-wrap: wrap; gap: 5px; }
+.bc-card-pill {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-family: 'IBM Plex Mono', monospace; font-size: 9px;
+  font-weight: 400; letter-spacing: 0.08em; text-transform: uppercase;
+  padding: 3px 8px; border-radius: 2px;
+  border: 1px solid #d9d0c0; background: transparent; color: #aaa;
+}
+.bc-card-pill.is-on { font-weight: 700; }
+.bc-card-pill-dot { width: 5px; height: 5px; border-radius: 50%; background: #c8bfa8; flex-shrink: 0; }
+.bc-card-footer {
+  display: flex; justify-content: space-between; align-items: center;
+  padding-top: 10px; border-top: 1px solid #e8e0ce; gap: 8px;
+}
+.bc-card-btn {
+  font-family: 'IBM Plex Mono', monospace; font-size: 10px;
+  letter-spacing: 0.08em; text-transform: uppercase; font-weight: 700;
+  padding: 5px 12px; border-radius: 2px; cursor: pointer;
+  transition: background 0.12s, color 0.12s, border-color 0.12s;
+  border: 1px solid #d9d0c0; background: transparent; color: #666;
+}
+.bc-card-btn:hover { background: #1a1a1a; color: #fff; border-color: #1a1a1a; }
+.bc-card-btn.is-primary { background: #1a1a1a; color: #fff; border-color: #1a1a1a; }
+.bc-card-btn.is-primary:hover { background: #c0392b; border-color: #c0392b; }
+.bc-card-btn.is-on { background: #8e44ad; color: #fff; border-color: #8e44ad; }
+.bc-empty {
+  font-family: 'IBM Plex Mono', monospace; font-size: 9px; color: #bbb; letter-spacing: 0.06em;
+}
