@@ -79,17 +79,34 @@ function rowToCollege(headers, row) {
   };
 }
 
+const CACHE_KEY = "bc_colleges_cache_v1";
+
+function readCache() {
+  try {
+    const raw = localStorage.getItem(CACHE_KEY);
+    if (!raw) return null;
+    const { colleges, ts } = JSON.parse(raw);
+    return Array.isArray(colleges) && colleges.length ? { colleges, ts } : null;
+  } catch { return null; }
+}
+
+function writeCache(colleges) {
+  try { localStorage.setItem(CACHE_KEY, JSON.stringify({ colleges, ts: Date.now() })); }
+  catch { /* ignore */ }
+}
+
 export function useGoogleSheet() {
-  const [colleges,    setColleges]    = useState([]);
-  const [loading,     setLoading]     = useState(true);
+  const cached = typeof window !== "undefined" ? readCache() : null;
+  const [colleges,    setColleges]    = useState(cached ? cached.colleges : []);
+  const [loading,     setLoading]     = useState(!cached);
   const [error,       setError]       = useState(null);
-  const [lastUpdated, setLastUpdated] = useState(null);
+  const [lastUpdated, setLastUpdated] = useState(cached ? new Date(cached.ts) : null);
   const timer = useRef(null);
 
   async function fetchSheet(quiet) {
-    if (!quiet) setLoading(true);
     try {
-      const res  = await fetch(CSV_URL + "&_=" + Date.now());
+      const url = quiet ? (CSV_URL + "&_=" + Date.now()) : CSV_URL;
+      const res  = await fetch(url);
       if (!res.ok) throw new Error("HTTP " + res.status);
       const text = await res.text();
       const rows = parseCSV(text);
@@ -99,8 +116,9 @@ export function useGoogleSheet() {
       setColleges(parsed);
       setLastUpdated(new Date());
       setError(null);
+      writeCache(parsed);
     } catch(err) {
-      setError(err.message);
+      if (colleges.length === 0) setError(err.message);
     } finally {
       setLoading(false);
     }
