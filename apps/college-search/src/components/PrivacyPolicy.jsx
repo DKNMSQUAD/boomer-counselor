@@ -14,15 +14,15 @@ export default function PrivacyPolicy({ onClose }) {
         <p style={P}><strong style={{color:"var(--ink)"}}>Last updated: April 2026</strong></p>
         <p style={P}>This Privacy Policy governs the use of <strong>College Search by Boomer Counselor</strong>. By using this platform you agree to the terms below.</p>
         <p style={H}>1. Information We Collect</p>
-        <p style={P}>When you purchase a report we collect your name, school/organisation, email address and phone number solely to deliver your report and maintain payment records. We do not collect any information from users who browse without purchasing.</p>
+        <p style={P}>If you sign in with Google we collect your name, email address and profile picture solely to personalise your experience and save your shortlist across devices. We do not collect information from users who browse without signing in.</p>
         <p style={H}>2. How We Use Your Information</p>
-        <p style={P}>Your information is used exclusively to: (a) deliver your purchased Intelligence Report by email; (b) maintain transaction records; (c) contact you if there is an issue with your order. We do not use your data for marketing without explicit consent.</p>
+        <p style={P}>Your information is used exclusively to: (a) maintain your session and sync your shortlist; (b) improve the product through aggregate usage analytics; (c) contact you only if you reach out to us first. We do not use your data for marketing without explicit consent.</p>
         <p style={H}>3. Data Sharing</p>
-        <p style={P}>We do not sell, rent or share your personal information with any third party except as required to process your payment (Razorpay) and deliver your report (Gmail).</p>
+        <p style={P}>We do not sell, rent or share your personal information with any third party. Sign-in is handled by Google; no payment processors are used.</p>
         <p style={H}>4. Data Storage</p>
-        <p style={P}>Transaction records are stored securely on Google Firebase, accessible only to our administrators. Payment processing is handled by Razorpay (PCI-DSS compliant). We do not store your card details.</p>
+        <p style={P}>Account records are stored securely on Google Firebase and Google Sheets, accessible only to our administrators.</p>
         <p style={H}>5. Cookies</p>
-        <p style={P}>This site uses localStorage solely to remember your shortlisted colleges on your own device. No tracking cookies or third-party analytics are used.</p>
+        <p style={P}>This app uses localStorage solely to remember your shortlisted colleges on your own device. No tracking cookies or third-party advertising networks are used.</p>
         <p style={H}>6. Your Rights</p>
         <p style={P}>You may request deletion of your personal data at any time by emailing hello@boomercounselor.com. We will respond within 7 business days.</p>
         <p style={H}>7. Contact</p>

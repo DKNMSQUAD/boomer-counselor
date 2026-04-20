@@ -1,4 +1,4 @@
-package com.nmsquad.collegesearch;
+package com.boomercounselor.collegesearch;
 
 import com.getcapacitor.BridgeActivity;
 

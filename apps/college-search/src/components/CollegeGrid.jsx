@@ -1,5 +1,5 @@
 import CollegeCard from "./CollegeCard";
-const CollegeGrid = ({ colleges, hasPurchased, onViewReport, shortlist, onToggleShortlist, emptyMessage }) => {
+const CollegeGrid = ({ colleges, onViewReport, shortlist, onToggleShortlist, emptyMessage }) => {
   if (colleges.length === 0) {
     return (
       <div style={{ padding: "60px 20px", textAlign: "center" }}>
@@ -27,7 +27,6 @@ const CollegeGrid = ({ colleges, hasPurchased, onViewReport, shortlist, onToggle
           <CollegeCard
             key={c.id}
             college={c}
-            hasPurchased={hasPurchased}
             isShortlisted={shortlist.includes(c.id)}
             onViewReport={onViewReport}
             onToggleShortlist={onToggleShortlist}

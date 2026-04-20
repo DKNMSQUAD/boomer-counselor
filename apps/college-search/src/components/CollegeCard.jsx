@@ -6,10 +6,9 @@ const chanceStyle = {
 const Tag = ({ label, color }) => (
   <span style={{ fontSize: 8, letterSpacing: "0.07em", textTransform: "uppercase", padding: "2px 8px", border: `1px solid ${color || "var(--border)"}`, color: color || "var(--muted)", fontFamily: "'IBM Plex Mono', monospace", whiteSpace: "nowrap" }}>{label}</span>
 );
-const CollegeCard = ({ college, hasPurchased, isShortlisted, onViewReport, onToggleShortlist }) => {
+const CollegeCard = ({ college, isShortlisted, onViewReport, onToggleShortlist }) => {
   const [logoErr, setLogoErr] = useState(false);
   const cs      = chanceStyle[college.chance] || { color: "var(--muted)", bg: "transparent" };
-  const unlocked  = hasPurchased(college.id);
   const hasReport = !!college.reportUrl;
   return (
     <div
@@ -35,7 +34,6 @@ const CollegeCard = ({ college, hasPurchased, isShortlisted, onViewReport, onTog
             {college.chance && (
               <span style={{ fontSize: 8, letterSpacing: "0.07em", textTransform: "uppercase", padding: "2px 8px", border: `1px solid ${cs.color}`, color: cs.color, background: cs.bg, fontFamily: "'IBM Plex Mono', monospace", whiteSpace: "nowrap" }}>{college.chance}</span>
             )}
-            {unlocked && <Tag label="Unlocked" color="var(--accent3)" />}
           </div>
         </div>
         {college.majors && college.majors.length > 0 && (
@@ -52,7 +50,7 @@ const CollegeCard = ({ college, hasPurchased, isShortlisted, onViewReport, onTog
           >
             {isShortlisted ? "\u2665 Shortlisted" : "\u2661 Shortlist"}
           </button>
-          {hasReport && unlocked ? (
+          {hasReport ? (
             <button
               onClick={() => onViewReport(college)}
               style={{ padding: "5px 14px", background: "var(--ink)", color: "var(--bg)", fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, letterSpacing: "0.08em", textTransform: "uppercase", border: "none", cursor: "pointer", transition: "background 0.12s" }}

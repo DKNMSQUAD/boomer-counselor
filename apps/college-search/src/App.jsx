@@ -7,7 +7,6 @@ import { useGoogleSheet } from "./hooks/useGoogleSheet";
 import PrivacyPolicy from './components/PrivacyPolicy';
 import TermsOfUse from './components/TermsOfUse';
 import { InstallPrompt } from "./InstallPrompt";
-import { usePurchases }   from "./hooks/usePurchases";
 import { emitEvent } from "./bcEvents";
 
 const SHORTLIST_KEY = "boomer_counselor_shortlist";
@@ -15,7 +14,6 @@ const EMPTY_FILTERS = { major: [], region: [], location: [], size: [], chance: [
 
 function App() {
   const { colleges, loading, error } = useGoogleSheet();
-  const { hasPurchased, addPurchase } = usePurchases();
 
   const [activeTab, setActiveTab] = useState("all");
   const [search,    setSearch]    = useState("");
@@ -66,7 +64,6 @@ function App() {
           college_name: college.name,
           region: college.region || '',
           chance: college.chance || '',
-          has_purchased: hasPurchased(college.id),
         },
       });
     }
@@ -162,7 +159,6 @@ function App() {
           <FiltersBar search={search} setSearch={setSearch} filters={filters} setFilters={setFilters} />
           <CollegeGrid
             colleges={filtered}
-            hasPurchased={hasPurchased}
             onViewReport={openReport}
             shortlist={shortlist}
             onToggleShortlist={toggleShortlist}
@@ -177,7 +173,6 @@ function App() {
           <FiltersBar filters={slFilters} setFilters={setSlFilters} />
           <CollegeGrid
             colleges={slFiltered}
-            hasPurchased={hasPurchased}
             onViewReport={openReport}
             shortlist={shortlist}
             onToggleShortlist={toggleShortlist}
@@ -198,7 +193,7 @@ function App() {
       {showPrivacy && <PrivacyPolicy onClose={()=>setShowPrivacy(false)} />}
       {showTerms && <TermsOfUse onClose={()=>setShowTerms(false)} />}
       {selected && (
-        <ReportModal college={selected} hasPurchased={hasPurchased} onPurchase={addPurchase} onClose={() => setSelected(null)} />
+        <ReportModal college={selected} onClose={() => setSelected(null)} />
       )}
     </div>
   );
