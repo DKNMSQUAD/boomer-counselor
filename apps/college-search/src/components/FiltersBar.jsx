@@ -6,11 +6,11 @@ const SIZES     = ["Small", "Medium", "Large"];
 const CHANCES   = ["Selective", "Achievable"];
 
 const GROUPS = [
-  { id: "major",    label: "Major / subject",  items: MAJOR_LABELS },
-  { id: "region",   label: "Region",           items: REGIONS },
-  { id: "location", label: "Location",         items: LOCATIONS },
-  { id: "size",     label: "School size",      items: SIZES },
-  { id: "chance",   label: "Admission chance", items: CHANCES },
+  { id: "major",    label: "I want to study",          items: MAJOR_LABELS },
+  { id: "region",   label: "I want to live in",        items: REGIONS },
+  { id: "location", label: "I prefer a",               items: LOCATIONS },
+  { id: "size",     label: "I want a school that is",  items: SIZES },
+  { id: "chance",   label: "My admission chance is",   items: CHANCES },
 ];
 
 const chanceColors = { Selective: "#c0392b", Achievable: "#27ae60" };

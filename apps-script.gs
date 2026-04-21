@@ -146,6 +146,31 @@ function doPost(e) {
   try {
     const data = JSON.parse(e.postData.contents);
 
+    // --- LISTING REQUEST: write to separate tab and return early ---
+    if (data.eventType === 'listing_request') {
+      const rawSS = SpreadsheetApp.openById('1oCj_MVwTsYkS1HXNKwMZcsSaRCWXdCOQO3qW-yaqLq0');
+      let listingSheet = rawSS.getSheetByName('Listing Requests');
+      if (!listingSheet) {
+        listingSheet = rawSS.insertSheet('Listing Requests');
+        listingSheet.appendRow([
+          'Timestamp', 'Name', 'Email', 'Phone', 'Organization',
+          'Category', 'Website', 'City', 'Country', 'Description', 'Notes', 'Status'
+        ]);
+        listingSheet.getRange(1, 1, 1, 12).setFontWeight('bold').setBackground('#f5c518');
+        listingSheet.setFrozenRows(1);
+      }
+      listingSheet.appendRow([
+        data.timestamp || new Date().toISOString(),
+        data.name || '', data.email || '', data.phone || '',
+        data.organization || '', data.category || '', data.website || '',
+        data.city || '', data.country || '', data.description || '',
+        data.notes || '', 'Pending'
+      ]);
+      return ContentService
+        .createTextOutput(JSON.stringify({ status: 'ok', eventType: 'listing_request' }))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+
     // --- 1) RAW sheet write (same behavior as v2) ---
     writeRawEvent(data);
     updateRawUser(data);
