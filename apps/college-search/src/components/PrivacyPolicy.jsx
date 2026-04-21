@@ -24,9 +24,9 @@ export default function PrivacyPolicy({ onClose }) {
         <p style={H}>5. Cookies</p>
         <p style={P}>This app uses localStorage solely to remember your shortlisted colleges on your own device. No tracking cookies or third-party advertising networks are used.</p>
         <p style={H}>6. Your Rights</p>
-        <p style={P}>You may request deletion of your personal data at any time by emailing hello@boomercounselor.com. We will respond within 7 business days.</p>
+        <p style={P}>You may request deletion of your personal data at any time by emailing contact@boomercounselor.com. We will respond within 7 business days.</p>
         <p style={H}>7. Contact</p>
-        <p style={S}>For privacy concerns contact: <strong style={{color:"var(--ink)"}}>hello@boomercounselor.com</strong></p>
+        <p style={S}>For privacy concerns contact: <strong style={{color:"var(--ink)"}}>contact@boomercounselor.com</strong></p>
       </div>
     </div>
   );

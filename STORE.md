@@ -12,7 +12,7 @@ All character counts checked against Apple/Google limits.
 ## Shared fields
 
 - **Developer / publisher**: Boomer Counselor
-- **Support email**: hello@boomercounselor.com
+- **Support email**: contact@boomercounselor.com
 - **Support URL**: https://boomercounselor.com
 - **Marketing URL**: https://boomercounselor.com
 - **Privacy Policy URL**: https://boomercounselor.com/privacy.html
@@ -70,10 +70,10 @@ WHO IT'S FOR
 - Independent counselors and school advisors working with multiple students
 
 PRIVACY
-We do not sell your data. We do not show ads. Every tool is free. You can delete your data any time by emailing hello@boomercounselor.com.
+We do not sell your data. We do not show ads. Every tool is free. You can delete your data any time by emailing contact@boomercounselor.com.
 
 SUPPORT
-hello@boomercounselor.com
+contact@boomercounselor.com
 https://boomercounselor.com
 
 Made by Boomer Counselor, an independent college-counseling studio.
@@ -93,7 +93,7 @@ First release. Career Discovery quiz, Profile Builder, and a College Search with
 ### App Review Information
 - **First name / Last name**: [your name]
 - **Phone**: [your phone]
-- **Email**: hello@boomercounselor.com
+- **Email**: contact@boomercounselor.com
 - **Sign-in required?** No (the iOS build opens directly to the college list; no login gate).
 - **Notes**:
   ```
@@ -180,10 +180,10 @@ WHO IT'S FOR
 • Independent counselors and school advisors working with multiple students
 
 PRIVACY
-We do not sell your data. We do not show ads. Every tool is free. You can delete your data any time by emailing hello@boomercounselor.com.
+We do not sell your data. We do not show ads. Every tool is free. You can delete your data any time by emailing contact@boomercounselor.com.
 
 SUPPORT
-hello@boomercounselor.com
+contact@boomercounselor.com
 https://boomercounselor.com
 
 Made by Boomer Counselor, an independent college-counseling studio.
@@ -193,7 +193,7 @@ Made by Boomer Counselor, an independent college-counseling studio.
 - **Does your app collect or share any of the required user data types?** Yes
 - **Is all user data collected by your app encrypted in transit?** Yes
 - **Do you provide a way for users to request that their data be deleted?** Yes
-  - Link: mailto:hello@boomercounselor.com
+  - Link: mailto:contact@boomercounselor.com
 
 Data types collected (for each: collected=Yes, shared=No, optional, encrypted in transit=Yes, can be deleted=Yes):
 - **Personal info → Name** — Purpose: App functionality. Optional: Yes.

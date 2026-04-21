@@ -26,7 +26,7 @@ export default function TermsOfUse({ onClose }) {
         <p style={H}>6. Governing Law</p>
         <p style={P}>These terms are governed by the laws of India. Any disputes shall be subject to the exclusive jurisdiction of the courts of Mumbai, Maharashtra.</p>
         <p style={H}>7. Contact</p>
-        <p style={S}>For any queries: <strong style={{color:"var(--ink)"}}>hello@boomercounselor.com</strong></p>
+        <p style={S}>For any queries: <strong style={{color:"var(--ink)"}}>contact@boomercounselor.com</strong></p>
       </div>
     </div>
   );

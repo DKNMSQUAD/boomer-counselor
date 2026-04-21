@@ -28,7 +28,7 @@ Hub: no build. Edit HTML, commit, push. Sub-apps: cd apps/<app> && npm install &
 Originally built for NM Squad (Neeraj Mandhana). Rebranded to Boomer Counselor. Keep it clean:
 - Logos: use logo.png (Boomer Counselor). No NM Squad branding anywhere.
 - Strings: no NM Squad, Neeraj Mandhana, or By NM Squad in user-facing UI.
-- Email: hello@boomercounselor.com (not reports.nmsquad@gmail.com).
+- Email: contact@boomercounselor.com (not reports.nmsquad@gmail.com).
 - Razorpay merchant: Boomer Counselor.
 - Footer: (c) 2026 Boomer Counselor.
 - If you find an NM Squad reference, fix it immediately.
