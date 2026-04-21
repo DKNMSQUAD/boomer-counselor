@@ -33,6 +33,7 @@ const ANALYTICS_TABS = {
   CAREERS: 'Career Discovery',
   PROFILE: 'Profile Builder',
   COLLEGE: 'College Search',
+  TUTOR: 'Tutor & Counselor',
 };
 
 // ============================================================================
@@ -74,6 +75,11 @@ const ANALYTICS_PROFILE_HEADERS = [
 const ANALYTICS_COLLEGE_HEADERS = [
   'Timestamp','Session ID','Name','Email','City','Country',
   'Filters used','Colleges shortlisted','Reports viewed','Reports purchased',
+];
+
+const ANALYTICS_TUTOR_HEADERS = [
+  'Timestamp','Session ID','Name','Email','City','Country',
+  'Filters used','Providers clicked',
 ];
 
 // ============================================================================
@@ -339,6 +345,7 @@ function writeAnalytics(data) {
   if (tool === 'careers')        updateCareerSession(ass, data, u, loc, now);
   else if (tool === 'profile')   updateProfileSession(ass, data, u, loc, now);
   else if (tool === 'college-search') updateCollegeSession(ass, data, u, loc, now);
+  else if (tool === 'tutor-counselor') updateTutorSession(ass, data, u, loc, now);
 }
 
 function upsertAnalyticsUser(ass, u, loc, now, tool) {
@@ -612,4 +619,67 @@ function parseExtra(extraData) {
 
 function capitalize(s) {
   return s ? s.charAt(0).toUpperCase() + s.slice(1) : '';
+}
+
+// ============================================================================
+// Tutor & Counselor session handler (same pattern as Profile Builder)
+// ============================================================================
+function updateTutorSession(ass, data, u, loc, now) {
+  let sheet = ass.getSheetByName(ANALYTICS_TABS.TUTOR);
+  if (!sheet) {
+    sheet = ass.insertSheet(ANALYTICS_TABS.TUTOR);
+    sheet.appendRow(ANALYTICS_TUTOR_HEADERS);
+    sheet.getRange(1, 1, 1, ANALYTICS_TUTOR_HEADERS.length).setFontWeight('bold').setBackground('#f5c518');
+    sheet.setFrozenRows(1);
+  }
+
+  const email = u.email || '';
+  const eventType = data.eventType || '';
+  const extra = parseExtra(data.extraData);
+  const rows = sheet.getDataRange().getValues();
+
+  // Find existing row for this user (most recent, within 5-min gap)
+  let existingRow = -1;
+  for (let i = rows.length - 1; i >= 1; i--) {
+    if (rows[i][3] === email) {
+      const rowTime = new Date(rows[i][0]);
+      if ((now - rowTime) < 5 * 60 * 1000 || eventType !== 'tool_open') {
+        existingRow = i + 1;
+      }
+      break;
+    }
+  }
+
+  if (eventType === 'tool_open' && existingRow === -1) {
+    const sessionId = rows.filter(r => r[3] === email).length + 1;
+    sheet.appendRow([
+      now.toISOString(), sessionId, u.name || '', email,
+      loc.city || '', loc.country_name || '',
+      '', '',
+    ]);
+    return;
+  }
+
+  if (existingRow === -1) return;
+
+  // Update filters
+  if (eventType === 'tool_filter' && extra) {
+    const criteria = extra.selected_criteria || [];
+    if (criteria.length > 0) {
+      sheet.getRange(existingRow, 7).setValue(criteria.join(', '));
+    }
+  }
+
+  // Track provider clicks
+  if (eventType === 'link_click') {
+    const label = data.targetLabel || '';
+    if (label) {
+      const current = (sheet.getRange(existingRow, 8).getValue() || '').toString();
+      const list = current ? current.split(', ') : [];
+      if (!list.includes(label)) {
+        list.push(label);
+        sheet.getRange(existingRow, 8).setValue(list.join(', '));
+      }
+    }
+  }
 }

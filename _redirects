@@ -1,3 +1,4 @@
 /careers/*  /apps/careers/dist/:splat  200
 /profile/*  /apps/profile/dist/:splat  200
 /college-search/*  /apps/college-search/dist/:splat  200
+/tutor-counselor/*  /apps/tutor-counselor/dist/:splat  200
