@@ -625,61 +625,36 @@ function capitalize(s) {
 // Tutor & Counselor session handler (same pattern as Profile Builder)
 // ============================================================================
 function updateTutorSession(ass, data, u, loc, now) {
-  let sheet = ass.getSheetByName(ANALYTICS_TABS.TUTOR);
+  var sheet = ass.getSheetByName(ANALYTICS_TABS.TUTOR);
   if (!sheet) {
     sheet = ass.insertSheet(ANALYTICS_TABS.TUTOR);
     sheet.appendRow(ANALYTICS_TUTOR_HEADERS);
     sheet.getRange(1, 1, 1, ANALYTICS_TUTOR_HEADERS.length).setFontWeight('bold').setBackground('#f5c518');
     sheet.setFrozenRows(1);
   }
+  var email = u.email || '';
+  var row = getOrCreateSession(sheet, email, 'tutor-counselor', data.eventType, now,
+    function(sessionId) { return [now, sessionId, u.name || '', email, loc.city || '', loc.country_name || '', '', '']; });
 
-  const email = u.email || '';
-  const eventType = data.eventType || '';
-  const extra = parseExtra(data.extraData);
-  const rows = sheet.getDataRange().getValues();
-
-  // Find existing row for this user (most recent, within 5-min gap)
-  let existingRow = -1;
-  for (let i = rows.length - 1; i >= 1; i--) {
-    if (rows[i][3] === email) {
-      const rowTime = new Date(rows[i][0]);
-      if ((now - rowTime) < 5 * 60 * 1000 || eventType !== 'tool_open') {
-        existingRow = i + 1;
-      }
-      break;
-    }
-  }
-
-  if (eventType === 'tool_open' && existingRow === -1) {
-    const sessionId = rows.filter(r => r[3] === email).length + 1;
-    sheet.appendRow([
-      now.toISOString(), sessionId, u.name || '', email,
-      loc.city || '', loc.country_name || '',
-      '', '',
-    ]);
-    return;
-  }
-
-  if (existingRow === -1) return;
-
-  // Update filters
-  if (eventType === 'tool_filter' && extra) {
-    const criteria = extra.selected_criteria || [];
+  if (data.eventType === 'tool_filter') {
+    var extra = parseExtra(data.extraData);
+    var criteria = [];
+    if (extra && Array.isArray(extra.selected_criteria)) criteria = extra.selected_criteria;
+    else if (data.targetLabel) criteria = data.targetLabel.split(',').map(function(s) { return s.trim(); }).filter(Boolean);
     if (criteria.length > 0) {
-      sheet.getRange(existingRow, 7).setValue(criteria.join(', '));
+      sheet.getRange(row, 7).setValue(criteria.join(', '));
+      sheet.getRange(row, 1).setValue(now);
     }
   }
 
-  // Track provider clicks
-  if (eventType === 'link_click') {
-    const label = data.targetLabel || '';
+  if (data.eventType === 'link_click') {
+    var label = data.targetLabel || '';
     if (label) {
-      const current = (sheet.getRange(existingRow, 8).getValue() || '').toString();
-      const list = current ? current.split(', ') : [];
-      if (!list.includes(label)) {
-        list.push(label);
-        sheet.getRange(existingRow, 8).setValue(list.join(', '));
-      }
+      var current = (sheet.getRange(row, 8).getValue() || '').toString();
+      var list = current ? current.split(', ').filter(Boolean) : [];
+      if (list.indexOf(label) === -1) { list.push(label); }
+      sheet.getRange(row, 8).setValue(list.join(', '));
+      sheet.getRange(row, 1).setValue(now);
     }
   }
 }
