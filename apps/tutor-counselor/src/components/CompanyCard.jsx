@@ -54,7 +54,7 @@ export default function CompanyCard({ company, criteria, selectedCriteria }) {
             {t.label}
           </span>
         ))}
-        {company.traits.length === 0 && <span className="bc-empty">OPEN TO ALL PROFILES</span>}
+        {company.traits.length === 0 && <span className="bc-empty">OPEN TO ALL STUDENTS</span>}
       </div>
     </>
   )

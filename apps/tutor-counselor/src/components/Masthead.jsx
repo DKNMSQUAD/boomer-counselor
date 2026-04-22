@@ -7,13 +7,13 @@ export default function Masthead({ totalSelected, matchCount, totalCompanies, to
         <div className="bc-masthead-left">
           <img className="bc-masthead-logo" src={import.meta.env.BASE_URL + 'logo.png'} alt='Boomer Counselor' />
           <div className="bc-masthead-titles">
-            <h1 className="bc-masthead-title">Profile Builder</h1>
-            <div className="bc-masthead-tagline">Build your story.</div>
+            <h1 className="bc-masthead-title">Tutor & Counselor Search</h1>
+            <div className="bc-masthead-tagline">Find the right guide.</div>
           </div>
         </div>
         <div className="bc-masthead-stats">
-          <div className="bc-masthead-stat">{totalCompanies} Companies</div>
-          <div className="bc-masthead-stat">{totalCriteria} Criteria</div>
+          <div className="bc-masthead-stat">{totalCompanies} Providers</div>
+          <div className="bc-masthead-stat">{totalCriteria} Filters</div>
         </div>
       </div>
     </header>
