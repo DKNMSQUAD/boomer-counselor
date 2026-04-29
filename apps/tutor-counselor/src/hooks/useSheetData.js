@@ -6,13 +6,13 @@ const GID = '0'
 const BASE_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&gid=${GID}`
 const POLL_MS = 60000
 
-// Group configuration - maps criteria index (column D=0, E=1, ...) to semantic groups
-// Sheet columns: A=name, B=logo, C=website, then criteria start at D
-//   D-F  (idx 0-2)   : I'm looking for    -> Test Prep, Tutor, Counselor
-//   G-H  (idx 3-4)   : Size               -> Solo/Small Team, Company
-//   I-K  (idx 5-7)   : I prefer            -> In Person, Online, Hybrid
-//   L-M  (idx 8-9)   : My budget is        -> Premium, Economy
-//   N-S  (idx 10-15) : Based in            -> North India, South India, West India, East India, Middle East, South East Asia
+// Group configuration - maps criteria index to semantic groups
+// Sheet columns: A=name, B=logo, C=website, D=city, then criteria start at E
+//   E-G  (idx 0-2)   : I'm looking for    -> Test Prep, Tutor, Counselor
+//   H-I  (idx 3-4)   : Size               -> Solo/Small Team, Company
+//   J-L  (idx 5-7)   : I prefer            -> In Person, Online, Hybrid
+//   M-N  (idx 8-9)   : My budget is        -> Premium, Economy
+//   O-T  (idx 10-15) : Based in            -> North India, South India, West India, East India, Middle East, South East Asia
 export const GROUPS = [
   { id: 'type',     label: "I'm looking for a",   start: 0,  end: 3  },
   { id: 'size',     label: 'Team size',            start: 3,  end: 5  },
@@ -37,8 +37,9 @@ function parseRows(rows) {
   if (!rows || rows.length < 3) return { criteria: [], companies: [] }
 
   // Row 0 = group headers (repeated), Row 1 = actual labels, Row 2+ = data
+  // Column D is City (skip it), criteria start at column E (index 4)
   const labelRow = rows[1]
-  const criteriaLabels = labelRow.slice(3)
+  const criteriaLabels = labelRow.slice(4)
   const criteria = criteriaLabels.map((label, i) => {
     const group = groupForIndex(i)
     return {
@@ -56,7 +57,7 @@ function parseRows(rows) {
     const logo = (row[1] || '').toString().trim()
     const website = (row[2] || '').toString().trim()
     const traits = criteria
-      .filter((c, i) => { const v = (row[3 + i] || '').toString().trim(); return v !== '' && v !== '-'; })
+      .filter((c, i) => { const v = (row[4 + i] || '').toString().trim(); return v !== '' && v !== '-'; })
       .map(c => c.id)
     return { id: `provider-${ri}`, name, logo, website, traits }
   }).filter(Boolean)
