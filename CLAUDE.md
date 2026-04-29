@@ -6,18 +6,19 @@ Multi-tool AI college counselling hub at **boomercounselor.com**. DK builds and 
 
 ## 1. What this project is
 
-A single-domain hub that serves a static landing page plus three independent React/Vite sub-apps under path prefixes:
+A single-domain hub that serves a static landing page plus four independent React/Vite sub-apps under path prefixes:
 
 -  Hub: Landing page, Google sign-in, dropdown that picks a tool. Static HTML/CSS/JS, no build step.
 -  Career Discovery: Interest-based career exploration quiz. React 19 + Vite 8.
 -  Profile Builder: Student profile generator. React 18 + Vite 5 (uses papaparse).
 -  College Search: Paid tool with Razorpay, Firebase, Capacitor iOS/Android. React 19 + Vite 8 + Firebase + Capacitor.
+-  Tutor & Counselor Search: Provider finder with 5 filter groups. React 18 + Vite 5 (uses papaparse). Sheet: 1m8PPTbx2183hjsqB0X-gLjzWZV3K5BSDFhGUXRYuSXw.
 
-Three more tools show as Coming soon in the hub dropdown (url: null in index.html).
+Two more tools show as Coming soon in the hub dropdown (url: null in index.html): Scholarship Search and Essay Feedback.
 
 ## 2. Routing (Cloudflare Pages)
 
-_redirects file rewrites /careers/* to /apps/careers/dist/:splat, /profile/* to /apps/profile/dist/:splat, /college-search/* to /apps/college-search/dist/:splat. Hub served from root. _headers file sets X-Frame-Options = SAMEORIGIN for iframe embedding. Each sub-app has base set in vite.config.js matching these paths.
+_redirects file rewrites /careers/* to /apps/careers/dist/:splat, /profile/* to /apps/profile/dist/:splat, /college-search/* to /apps/college-search/dist/:splat, /tutor-counselor/* to /apps/tutor-counselor/dist/:splat. Hub served from root. _headers file sets X-Frame-Options = SAMEORIGIN for iframe embedding. Each sub-app has base set in vite.config.js matching these paths.
 
 ## 3. Build and deploy
 
@@ -164,3 +165,23 @@ Every user action writes to TWO Google Sheets in real time:
 3. Inject via Monaco API: monaco.editor.getEditors()[0].setValue(code)
 4. Cmd+S to save
 5. Deploy > Manage deployments > pencil > New version > Deploy
+
+## PENDING TASKS
+
+### CRITICAL: Deploy Apps Script tutor-counselor analytics fix
+The `updateTutorSession` function in `apps-script.gs` (commit e8f0115) uses `getOrCreateSession` helper but has NOT been deployed as a new Apps Script version. Must inject into Apps Script editor and deploy as new version (>9).
+
+Root cause of bug: old code compared string `'now'` with Date via subtraction = NaN. The fix uses `getOrCreateSession()` helper (same as the other 3 working tools).
+
+Apps Script project ID: `16IgPxqH1NZ4cciuvwVSPpBFj7INKxkcB5EI4G9A8Jm5LU-MUbMJ2J3Av`
+
+### Essay Feedback tool (next to build)
+Currently shows as "Soon" in the hub dropdown. Needs data source (Google Sheet), UI (same pattern as Profile Builder / Tutor & Counselor Search), and analytics integration.
+
+### Scholarship Search tool (future)
+Currently shows as "Soon" in the hub dropdown.
+
+### Other pending items
+- Fix phone #ERROR! in Listing Requests sheet (prefix with apostrophe)
+- Career Discovery UI spacing fix (match College Search compactness)
+- Full visual parity check across all tools
