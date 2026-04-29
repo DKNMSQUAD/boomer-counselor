@@ -56,7 +56,7 @@ function parseRows(rows) {
     const logo = (row[1] || '').toString().trim()
     const website = (row[2] || '').toString().trim()
     const traits = criteria
-      .filter((c, i) => (row[3 + i] || '').toString().trim() !== '')
+      .filter((c, i) => { const v = (row[3 + i] || '').toString().trim(); return v !== '' && v !== '-'; })
       .map(c => c.id)
     return { id: `provider-${ri}`, name, logo, website, traits }
   }).filter(Boolean)
