@@ -310,6 +310,12 @@ button { cursor: pointer; font-family: inherit; }
   flex-shrink: 0;
 }
 .rc-pct-bold { font-size: 14px; }
+.rc-weight {
+  font-size: 9px;
+  color: #a89e8a;
+  font-weight: 400;
+  margin-left: 4px;
+}
 .rc-overall-section {
   margin-top: 18px;
   padding-top: 14px;
@@ -384,16 +390,6 @@ button { cursor: pointer; font-family: inherit; }
   text-transform: uppercase;
 }
 
-/* Detail notes */
-.rc-detail-note {
-  font-size: 11px;
-  color: #5a5347;
-  margin-top: 6px;
-  line-height: 1.5;
-  padding-left: 8px;
-  border-left: 2px solid #f5a623;
-}
-
 /* Expandable detail sections */
 .detail-section {
   margin-top: 8px;
@@ -401,52 +397,32 @@ button { cursor: pointer; font-family: inherit; }
   border-radius: 3px;
   overflow: hidden;
 }
-.detail-toggle {
-  width: 100%;
-  text-align: left;
-  background: #f3efe6;
-  border: none;
-  padding: 8px 12px;
-  font-size: 11px;
-  font-weight: 700;
-  color: #1a1a1a;
-  cursor: pointer;
-  font-family: 'IBM Plex Mono', monospace;
-}
-.detail-toggle:hover { background: #ebe5d8; }
-.detail-body {
-  padding: 10px 12px;
-  background: #faf7f2;
-}
-.detail-item {
+
+/* Diagnostic flags */
+.rc-flag {
   font-size: 11px;
   color: #5a5347;
-  margin-bottom: 6px;
   line-height: 1.5;
+  padding: 6px 10px;
+  margin-bottom: 4px;
+  background: #fef3e2;
+  border-left: 3px solid #f5a623;
+  border-radius: 0 3px 3px 0;
 }
-.detail-item:last-child { margin-bottom: 0; }
-.detail-wrong {
-  color: #c0392b;
+.rc-flag:last-child { margin-bottom: 0; }
+.rc-flag-icon {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  background: #f5a623;
+  color: #fff;
+  font-size: 10px;
   font-weight: 700;
-}
-.detail-right {
-  color: #27ae60;
-  font-weight: 700;
-}
-.detail-rule {
-  color: #8a7f72;
-  font-weight: 500;
-}
-.detail-fix {
-  display: block;
-  color: #27ae60;
-  margin-top: 2px;
-  padding-left: 12px;
-  font-style: italic;
-}
-.detail-synonyms {
-  color: #2980b9;
-  font-style: italic;
+  text-align: center;
+  line-height: 16px;
+  border-radius: 50%;
+  margin-right: 6px;
+  vertical-align: middle;
 }
 
 /* Conclusion */

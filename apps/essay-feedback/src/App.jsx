@@ -5,223 +5,420 @@ import { jsPDF } from 'jspdf'
 import './index.css'
 
 /* ================================================================
-   BASELINE DATA (from ~10,000 student essays)
+   ESSAY TYPES + PROMPT EXPECTATIONS
    ================================================================ */
-const BASELINE = {
-  sentenceLength: {
-    mean: 15.2,
-    stdDev: 6.8,
-    histogram: {
-      '1-5': 0.05, '6-10': 0.18, '11-15': 0.30,
-      '16-20': 0.25, '21-25': 0.13, '26-30': 0.06, '31+': 0.03,
-    },
-  },
-  iCount: { per100Words: 4.2, maxPer100Words: 7 },
-  wordRepetition: { maxFrequencyPercent: 3.0 },
-}
-
 const ESSAY_TYPES = [
-  'CommonApp (main essay)',
-  'UCAS Personal Statement',
-  'Why This College Essay',
-  'Why This Major Essay',
-  'Personal Essay',
+  { id: 'commonapp', label: 'CommonApp (main essay)', prompts: ['identity','significance','personal_stakes','incomplete_without'] },
+  { id: 'ucas', label: 'UCAS Personal Statement', prompts: ['subject_passion','academic_engagement','future_goals'] },
+  { id: 'why_college', label: 'Why This College Essay', prompts: ['specific_college','program_fit','campus_culture'] },
+  { id: 'why_major', label: 'Why This Major Essay', prompts: ['subject_interest','experience','future_application'] },
+  { id: 'personal', label: 'Personal Essay', prompts: ['identity','significance','personal_stakes'] },
 ]
 
 /* ================================================================
-   STOP WORDS
+   WORD LISTS
    ================================================================ */
-const STOP_WORDS = new Set([
-  'the','a','an','and','or','but','in','on','at','to','for','of','with',
-  'by','from','as','is','was','are','were','be','been','being','have',
-  'has','had','do','does','did','will','would','could','should','may',
-  'might','shall','can','this','that','these','those','it','its',
-  'my','your','his','her','our','their','we','they','he','she',
-  'me','him','us','them','not','no','so','if','then','than','when',
-  'where','what','which','who','whom','how','all','each','every',
-  'both','few','more','most','other','some','such','only','very',
-  'just','also','about','up','out','into','over','after','before',
+const ABSTRACT_NOUNS = new Set([
+  'morality','society','humanity','evil','life','world','meaning','purpose',
+  'values','importance','culture','philosophy','perspective','growth','journey',
+  'lesson','wisdom','knowledge','truth','beauty','justice','freedom','equality',
+  'power','success','failure','happiness','sadness','love','hate','fear',
+  'courage','strength','weakness','mankind','civilization','existence','reality',
+  'destiny','fate','nature','essence','consciousness','awareness','understanding',
+  'compassion','empathy','integrity','resilience','determination','ambition',
+  'inspiration','motivation','transformation','enlightenment','maturity',
 ])
 
-/* ================================================================
-   COMMON MISSPELLINGS
-   ================================================================ */
-const MISSPELLINGS = {
-  'acheive':'achieve','acheiving':'achieving','accomodate':'accommodate',
-  'accross':'across','agressive':'aggressive','apparantly':'apparently',
-  'arguement':'argument','basicly':'basically','begining':'beginning',
-  'beleive':'believe','benifit':'benefit','buisness':'business',
-  'calender':'calendar','catagory':'category','cemetary':'cemetery',
-  'charachter':'character','comming':'coming','commited':'committed',
-  'comparision':'comparison','competance':'competence','completly':'completely',
-  'concious':'conscious','consistant':'consistent','convienient':'convenient',
-  'definately':'definitely','dependant':'dependent','desparate':'desperate',
-  'developement':'development','diffrence':'difference','dilema':'dilemma',
-  'disapear':'disappear','disapoint':'disappoint','ecstacy':'ecstasy',
-  'embarass':'embarrass','enviroment':'environment','exagerate':'exaggerate',
-  'excercise':'exercise','existance':'existence','experiance':'experience',
-  'familar':'familiar','fasinate':'fascinate','finaly':'finally',
-  'foriegn':'foreign','fourty':'forty','freind':'friend',
-  'fulfil':'fulfill','goverment':'government','grammer':'grammar',
-  'gaurd':'guard','happend':'happened','harrass':'harass',
-  'hieght':'height','humourous':'humorous',
-  'immediatly':'immediately','independant':'independent','indispensible':'indispensable',
-  'innoculate':'inoculate','intellegent':'intelligent','intresting':'interesting',
-  'irresistable':'irresistible','knowlege':'knowledge','liase':'liaise',
-  'libary':'library','liesure':'leisure','maintainance':'maintenance',
-  'millenium':'millennium','mischievious':'mischievous','necesary':'necessary',
-  'neccessary':'necessary','noticable':'noticeable','occassion':'occasion',
-  'occured':'occurred','occurence':'occurrence','oppurtunity':'opportunity',
-  'parliment':'parliament','persistant':'persistent','peice':'piece',
-  'posession':'possession','potatos':'potatoes','preceed':'precede',
-  'privelege':'privilege','proffesional':'professional','pronounciation':'pronunciation',
-  'publically':'publicly','realy':'really','recieve':'receive',
-  'reccomend':'recommend','refered':'referred','relevent':'relevant',
-  'religous':'religious','remeber':'remember','repitition':'repetition',
-  'resistence':'resistance','sence':'sense','seperate':'separate',
-  'seige':'siege','similer':'similar','sinceerly':'sincerely',
-  'speach':'speech','strenght':'strength','succesful':'successful',
-  'suprise':'surprise','tendancy':'tendency','therefor':'therefore',
-  'threshhold':'threshold','tommorow':'tomorrow','tounge':'tongue',
-  'truely':'truly','tyrany':'tyranny','underate':'underrate',
-  'untill':'until','upholstry':'upholstery','useable':'usable',
-  'vaccuum':'vacuum','vegitable':'vegetable','vetrinary':'veterinary',
-  'visious':'vicious','wether':'whether','wierd':'weird',
-  'writting':'writing','wellfare':'welfare',
-  'alot':'a lot','aswell':'as well','infact':'in fact',
-  'inspite':'in spite','infront':'in front','thankyou':'thank you',
-  'ofcourse':'of course','eventhough':'even though',
-  'teh':'the','hte':'the','adn':'and','taht':'that','waht':'what',
-  'jsut':'just','thier':'their','recieved':'received','wich':'which',
-  'becuase':'because','diffrent':'different','enviorment':'environment',
-  'occassionally':'occasionally','neccessity':'necessity','accomodation':'accommodation',
-  'posess':'possess','comittee':'committee','occuring':'occurring',
-  'supercede':'supersede','managment':'management',
-  'priviledge':'privilege','persistance':'persistence','occurrance':'occurrence',
-  'dissappoint':'disappoint','dissapear':'disappear',
-}
+const SENSORY_WORDS = new Set([
+  'red','blue','green','yellow','bright','dark','cold','hot','warm','cool',
+  'loud','quiet','soft','hard','rough','smooth','sweet','bitter','sour','salty',
+  'sharp','dull','heavy','light','wet','dry','fresh','stale','crisp','dim',
+  'glowing','shimmering','thundering','whispering','trembling','burning','freezing',
+  'aching','tingling','pounding','throbbing','gleaming','flickering','rustling',
+  'crackling','buzzing','humming','crunching','splashing','dripping','sticky',
+  'silky','velvety','gritty','dusty','musty','fragrant','pungent','metallic',
+])
 
-/* ================================================================
-   CLICHE PHRASES
-   ================================================================ */
+const TIME_MARKERS = [
+  'then','when','after','before','during','one day','that morning','that evening',
+  'that night','years ago','months later','the next day','suddenly','eventually',
+  'finally','at that moment','in that instant','meanwhile','afterwards','later',
+  'the following','that summer','that winter','at age','years old',
+]
+
+const BEFORE_MARKERS = [
+  'before','initially','used to','at first','growing up','when i was younger',
+  'i once','previously','in the past','back then','i had always','i never thought',
+  'my younger self','as a child','early on','up until',
+]
+
+const AFTER_MARKERS = [
+  'now','today','i began to','i started','i realized','since then',
+  'from that point','i no longer','these days','looking back','i now',
+  'i have since','i understand now','i see now','that changed','everything shifted',
+  'from then on','i finally','it dawned on me','i came to see',
+]
+
+const TRANSITION_MARKERS = [
+  'but then','however','one day','everything changed','that is when',
+  'it was not until','turning point','pivotal','shifted','transformed',
+  'breakthrough','wake-up call','clicked','it hit me',
+]
+
+const STRONG_AGENCY_PATTERNS = [
+  /\bi chose\b/gi, /\bi decided\b/gi, /\bi built\b/gi, /\bi created\b/gi,
+  /\bi confronted\b/gi, /\bi questioned\b/gi, /\bi challenged\b/gi,
+  /\bi changed\b/gi, /\bi failed\b/gi, /\bi struggled\b/gi,
+  /\bi fought\b/gi, /\bi refused\b/gi, /\bi committed\b/gi,
+  /\bi initiated\b/gi, /\bi led\b/gi, /\bi organized\b/gi,
+  /\bi founded\b/gi, /\bi designed\b/gi, /\bi developed\b/gi,
+  /\bi pursued\b/gi, /\bi sacrificed\b/gi, /\bi risked\b/gi,
+  /\bi stood up\b/gi, /\bi spoke up\b/gi, /\bi stepped\b/gi,
+  /\bi discovered\b/gi, /\bi learned\b/gi, /\bi overcame\b/gi,
+  /\bi embraced\b/gi, /\bi abandoned\b/gi, /\bi accepted\b/gi,
+]
+
+const WEAK_AGENCY_PATTERNS = [
+  /\bi was told\b/gi, /\bi have always\b/gi, /\bi am\b/gi,
+  /\bi think\b/gi, /\bi believe\b/gi, /\bi feel\b/gi,
+  /\bi was given\b/gi, /\bi was taught\b/gi, /\bi was raised\b/gi,
+  /\bi was born\b/gi, /\bi happened to\b/gi, /\bi found myself\b/gi,
+]
+
+const STRONG_INSIGHT = [
+  /\bi realized that\b/gi, /\bthis made me question\b/gi,
+  /\bi was uncomfortable because\b/gi, /\bi understood that\b/gi,
+  /\bi saw myself in\b/gi, /\bfor the first time i\b/gi,
+  /\bi began to see\b/gi, /\bi questioned whether\b/gi,
+  /\bi recognized that\b/gi, /\bi had been wrong\b/gi,
+  /\bit forced me to\b/gi, /\bi could no longer\b/gi,
+  /\bi confronted the fact\b/gi, /\bi had to admit\b/gi,
+  /\bwhat surprised me was\b/gi, /\bi discovered that\b/gi,
+  /\bthis contradiction\b/gi, /\bi struggled with\b/gi,
+  /\bi came to understand\b/gi,
+]
+
+const WEAK_INSIGHT = [
+  /\bit taught me\b/gi, /\bi learned\b/gi,
+  /\bit made me a better\b/gi, /\bit changed my life\b/gi,
+  /\bi grew as a person\b/gi, /\bi became more\b/gi,
+  /\bit showed me the importance\b/gi, /\bi am grateful\b/gi,
+  /\bi have always been passionate\b/gi, /\bfrom a young age\b/gi,
+  /\bever since i was\b/gi, /\bi want to make a difference\b/gi,
+  /\bit opened my eyes\b/gi, /\bmy passion for\b/gi,
+  /\bthis experience shaped\b/gi,
+]
+
 const CLICHE_PHRASES = [
-  { text: 'ever since i was a child', fix: 'Start with a specific moment instead' },
+  { text: 'ever since i was a child', fix: 'Start with a specific moment' },
   { text: 'from a young age', fix: 'Name the exact age or event' },
-  { text: 'i have always been passionate', fix: 'Show the passion through a specific story' },
-  { text: 'changed my life forever', fix: 'Describe exactly what changed and how' },
+  { text: 'i have always been passionate', fix: 'Show passion through a specific story' },
+  { text: 'changed my life forever', fix: 'Describe exactly what changed' },
   { text: 'opened my eyes to', fix: 'Describe what you saw differently' },
-  { text: 'taught me the importance of', fix: 'Show the lesson through action, not telling' },
-  { text: 'i learned that hard work', fix: 'Replace with a specific example of effort' },
+  { text: 'taught me the importance of', fix: 'Show the lesson through action' },
   { text: 'a defining moment in my life', fix: 'Just describe the moment directly' },
-  { text: 'i want to make a difference', fix: 'Name the specific difference you want to make' },
-  { text: 'this experience shaped who i am', fix: 'Show, don\'t tell, how you changed' },
+  { text: 'i want to make a difference', fix: 'Name the specific difference' },
   { text: 'pushed me out of my comfort zone', fix: 'Describe the discomfort specifically' },
-  { text: 'my passion for', fix: 'Demonstrate the passion through actions' },
-  { text: 'i have always dreamed of', fix: 'Describe a specific moment the dream took shape' },
-  { text: 'growing up in', fix: 'Start with a vivid scene from your childhood' },
-  { text: 'it was then that i realized', fix: 'State the realization directly' },
-  { text: 'looking back i realize', fix: 'State the insight without the preamble' },
-  { text: 'this taught me that', fix: 'Show the lesson through the story' },
-  { text: 'i am grateful for', fix: 'Show gratitude through specific actions' },
+  { text: 'this experience shaped who i am', fix: 'Show, don\'t tell' },
+  { text: 'looking back i realize', fix: 'State the insight directly' },
   { text: 'i am determined to', fix: 'Describe what you are already doing' },
-  { text: 'the world needs', fix: 'Be specific about the problem you see' },
 ]
 
 /* ================================================================
-   GRAMMAR RULES
+   UTILITY
    ================================================================ */
-const GRAMMAR_RULES = [
-  { name: 'Repeated word', re: /\b(\w+)\s+\1\b/gi, msg: 'Repeated word' },
-  { name: 'Missing capital', re: /[.!?]\s+[a-z]/g, msg: 'Start with a capital letter' },
-  { name: 'Passive voice', re: /\b(was|were|is|are|been|being)\s+(been\s+)?(made|done|given|taken|seen|known|found|told|shown|left|heard|kept|held|brought|written|provided|set|paid|met|run)\b/gi, msg: 'Consider active voice' },
-  { name: 'Weak intensifier', re: /\bvery\s+\w+/gi, msg: '"Very" is weak. Use a stronger word.' },
-  { name: 'Double space', re: /  +/g, msg: 'Extra spaces' },
-]
-
-/* ================================================================
-   TONE PATTERNS
-   ================================================================ */
-const NEGATIVE_PATTERNS = [
-  /\bi('m| am) not good (enough|at)\b/gi,
-  /\bi failed\b/gi,
-  /\bmy (biggest )?(weakness|flaw|failure|shortcoming)\b/gi,
-  /\bi('m| am) (bad|terrible|awful|horrible) at\b/gi,
-  /\bi struggle(d)? (with|to)\b/gi,
-  /\bunfortunately,? i\b/gi,
-  /\bi regret\b/gi,
-  /\bi('m| am) (just|only) a\b/gi,
-  /\bi never (could|can|was able)\b/gi,
-  /\bi lack\b/gi,
-  /\bmy (poor|weak|limited)\b/gi,
-  /\bi('m| am) (ashamed|embarrassed)\b/gi,
-  /\bi don'?t (deserve|belong)\b/gi,
-]
-
-const BOASTING_PATTERNS = [
-  /\bi('m| am) the (best|greatest|top|only)\b/gi,
-  /\bi single-?handedly\b/gi,
-  /\bunlike (anyone|anybody|everyone) else\b/gi,
-  /\bi always (succeed|win|excel|achieve)\b/gi,
-  /\bi never (fail|lose|give up)\b/gi,
-  /\bno one (else )?(can|could|has|did)\b/gi,
-  /\bi('m| am) (exceptional|extraordinary|unmatched|unparalleled)\b/gi,
-  /\beveryone (admires|respects|looks up to) me\b/gi,
-  /\bi('m| am) (naturally|inherently) (gifted|talented|brilliant)\b/gi,
-  /\bi('m| am) (the smartest|better than|superior)\b/gi,
-  /\bwithout me,?\s/gi,
-  /\bperfect (score|grades|record|GPA)\b/gi,
-]
-
-/* ================================================================
-   SYNONYM SUGGESTIONS
-   ================================================================ */
-const SYNONYMS = {
-  experience: ['journey', 'encounter', 'involvement', 'exposure'],
-  passion: ['dedication', 'commitment', 'enthusiasm', 'drive'],
-  passionate: ['dedicated', 'committed', 'enthusiastic', 'driven'],
-  important: ['significant', 'crucial', 'essential', 'vital'],
-  interesting: ['compelling', 'engaging', 'fascinating', 'intriguing'],
-  good: ['effective', 'strong', 'valuable', 'beneficial'],
-  great: ['remarkable', 'outstanding', 'exceptional', 'superb'],
-  help: ['support', 'assist', 'contribute to', 'enable'],
-  helped: ['supported', 'enabled', 'contributed to', 'guided'],
-  learn: ['discover', 'uncover', 'grasp', 'absorb'],
-  learned: ['discovered', 'uncovered', 'grasped', 'absorbed'],
-  think: ['believe', 'consider', 'recognize', 'understand'],
-  want: ['aspire', 'aim', 'seek', 'intend'],
-  really: ['genuinely', 'profoundly', 'deeply'],
-  thing: ['aspect', 'element', 'factor', 'dimension'],
-  things: ['aspects', 'elements', 'factors', 'dimensions'],
-  make: ['create', 'build', 'establish', 'develop'],
-  change: ['transform', 'shift', 'reshape', 'evolve'],
-  people: ['individuals', 'peers', 'community', 'society'],
-  world: ['community', 'field', 'society', 'landscape'],
-}
-
-/* ================================================================
-   ANALYSIS FUNCTIONS
-   ================================================================ */
-
 function splitSentences(text) {
   return text
-    .split(/(?<!\b(?:Mr|Mrs|Ms|Dr|Jr|Sr|St|Prof|Gen|Rep|Sen|U\.S|Inc|Ltd|Corp|vs|etc|e\.g|i\.e))\s*[.!?]+\s+/)
-    .map(s => s.trim())
-    .filter(s => s.length > 0)
+    .split(/(?<!\b(?:Mr|Mrs|Ms|Dr|Jr|Sr|St|Prof|U\.S|Inc|Ltd|vs|etc|e\.g|i\.e))\s*[.!?]+\s+/)
+    .map(s => s.trim()).filter(s => s.length > 0)
 }
 
 function countWords(text) {
   const t = text.trim()
-  if (!t) return 0
-  return t.split(/\s+/).length
+  return t ? t.split(/\s+/).length : 0
 }
 
-function analyzeSentenceLength(text) {
+function countMatches(text, patterns) {
+  let total = 0
+  for (const p of patterns) {
+    const re = new RegExp(p.source, p.flags)
+    total += [...text.matchAll(re)].length
+  }
+  return total
+}
+
+function containsAny(text, phrases) {
+  const lower = text.toLowerCase()
+  return phrases.filter(p => lower.includes(p.toLowerCase()))
+}
+
+/* ================================================================
+   MODULE 1: NARRATIVE vs EXPOSITION (15 pts)
+   ================================================================ */
+function analyzeNarrative(text) {
   const sentences = splitSentences(text)
-  if (sentences.length === 0) return { score: 50, lengths: [], mean: 0, stdDev: 0, histogram: {}, feedback: [], longSentences: [] }
+  if (sentences.length === 0) return { score: 0, ratio: 0, narrativeCount: 0, expositionCount: 0, flags: [] }
+
+  let narrativeCount = 0
+  let expositionCount = 0
+
+  for (const s of sentences) {
+    const lower = s.toLowerCase()
+    const words = lower.split(/\s+/)
+
+    let narrativeSignals = 0
+    let expositionSignals = 0
+
+    // Past tense (common -ed endings, irregular past tenses)
+    const pastTense = (s.match(/\b\w+ed\b/gi) || []).length
+    const irregularPast = (s.match(/\b(was|were|went|came|saw|felt|thought|knew|had|made|told|found|gave|took|ran|stood|sat|fell|heard|spoke|began|broke|chose|drove|flew|grew|held|kept|left|lost|met|paid|put|read|rode|rose|sang|sent|set|shook|shot|showed|shut|slept|spent|spread|stood|stole|struck|swept|swam|taught|threw|tore|understood|woke|wore|won|wrote)\b/gi) || []).length
+    narrativeSignals += pastTense + irregularPast
+
+    // Time markers in sentence
+    for (const tm of TIME_MARKERS) {
+      if (lower.includes(tm)) narrativeSignals += 2
+    }
+
+    // Sensory words
+    for (const w of words) {
+      if (SENSORY_WORDS.has(w.replace(/[^a-z]/g, ''))) narrativeSignals += 1
+    }
+
+    // Abstract nouns = exposition signal
+    for (const w of words) {
+      if (ABSTRACT_NOUNS.has(w.replace(/[^a-z]/g, ''))) expositionSignals += 2
+    }
+
+    // Present tense generalizations ("is", "are", "means")
+    if (/\b(is|are|means|represents|symbolizes|embodies|reflects|demonstrates|illustrates)\b/i.test(s)) {
+      expositionSignals += 1
+    }
+
+    if (narrativeSignals > expositionSignals) narrativeCount++
+    else if (expositionSignals > 0) expositionCount++
+  }
+
+  const ratio = narrativeCount / sentences.length
+  // Ideal: 50-70% narrative. Below 30% is bad.
+  let score
+  if (ratio >= 0.5) score = Math.min(100, Math.round(ratio * 130))
+  else if (ratio >= 0.3) score = Math.round(ratio * 200)
+  else score = Math.round(ratio * 150)
+  score = Math.min(100, Math.max(0, score))
+
+  const flags = []
+  if (ratio < 0.3) flags.push(`Essay is ${Math.round((1 - ratio) * 100)}% exposition. Lacks lived experience.`)
+  if (ratio < 0.4) flags.push('Add specific moments and scenes from your life.')
+  if (expositionCount > narrativeCount * 2) flags.push('You are explaining more than showing. Lead with stories.')
+
+  return { score, ratio, narrativeCount, expositionCount, total: sentences.length, flags }
+}
+
+/* ================================================================
+   MODULE 2: PERSONAL AGENCY (15 pts)
+   ================================================================ */
+function analyzeAgency(text) {
+  const strongCount = countMatches(text, STRONG_AGENCY_PATTERNS)
+  const weakCount = countMatches(text, WEAK_AGENCY_PATTERNS)
+  const total = strongCount + weakCount
+
+  let score
+  if (total === 0) {
+    score = 20
+  } else {
+    const ratio = strongCount / total
+    score = Math.min(100, Math.max(0, Math.round(ratio * 120)))
+  }
+
+  const flags = []
+  if (strongCount === 0) flags.push('No personal action verbs detected. Show what YOU did, not what happened to you.')
+  if (weakCount > strongCount * 2) flags.push('Too many passive self-references. Replace "I was/I am/I think" with "I chose/I built/I confronted".')
+  if (total < 3) flags.push('Essay lacks personal agency. Center yourself as the protagonist who acts.')
+
+  return { score, strongCount, weakCount, flags }
+}
+
+/* ================================================================
+   MODULE 3: TRANSFORMATION ARC (20 pts - CRITICAL)
+   ================================================================ */
+function analyzeTransformation(text) {
+  const lower = text.toLowerCase()
+
+  const beforeFound = containsAny(lower, BEFORE_MARKERS)
+  const afterFound = containsAny(lower, AFTER_MARKERS)
+  const transitionFound = containsAny(lower, TRANSITION_MARKERS)
+
+  const hasBefore = beforeFound.length > 0
+  const hasAfter = afterFound.length > 0
+  const hasTransition = transitionFound.length > 0
+
+  let arcStrength = 0 // 0-3
+  if (hasBefore) arcStrength++
+  if (hasAfter) arcStrength++
+  if (hasTransition) arcStrength++
+
+  // Check for before->after ORDERING (before markers should appear earlier than after markers)
+  let hasProperOrder = false
+  if (hasBefore && hasAfter) {
+    const firstBefore = Math.min(...beforeFound.map(b => lower.indexOf(b)))
+    const lastAfter = Math.max(...afterFound.map(a => lower.indexOf(a)))
+    hasProperOrder = firstBefore < lastAfter
+  }
+
+  let score
+  if (arcStrength === 3 && hasProperOrder) score = 100
+  else if (arcStrength >= 2 && hasProperOrder) score = 80
+  else if (arcStrength >= 2) score = 60
+  else if (arcStrength === 1) score = 30
+  else score = 0
+
+  const flags = []
+  if (arcStrength === 0) flags.push('No transformation arc detected. Admissions needs to see how you changed.')
+  if (!hasBefore && hasAfter) flags.push('You describe who you are now, but not who you were before. Add the "before" state.')
+  if (hasBefore && !hasAfter) flags.push('You set up a starting point but never show how you changed. Add the "now" state.')
+  if (hasBefore && hasAfter && !hasTransition) flags.push('Arc exists but the turning point is unclear. Add the moment everything shifted.')
+
+  return { score, arcStrength, hasBefore, hasAfter, hasTransition, hasProperOrder, beforeFound, afterFound, transitionFound, flags }
+}
+
+/* ================================================================
+   MODULE 4: SPECIFICITY (15 pts)
+   ================================================================ */
+function analyzeSpecificity(text) {
+  const sentences = splitSentences(text)
+  const words = text.toLowerCase().split(/\s+/)
+
+  // Concrete signals
+  let concreteCount = 0
+
+  // Proper nouns (capitalized words not at sentence start)
+  const properNouns = (text.match(/(?<=\s)[A-Z][a-z]+/g) || []).length
+  concreteCount += properNouns
+
+  // Numbers and dates
+  concreteCount += (text.match(/\b\d+\b/g) || []).length
+
+  // Sensory words
+  for (const w of words) {
+    if (SENSORY_WORDS.has(w.replace(/[^a-z]/g, ''))) concreteCount++
+  }
+
+  // Specific action verbs in past tense
+  concreteCount += (text.match(/\b\w+ed\b/g) || []).length * 0.3
+
+  // Abstract signals
+  let abstractCount = 0
+  for (const w of words) {
+    if (ABSTRACT_NOUNS.has(w.replace(/[^a-z]/g, ''))) abstractCount++
+  }
+
+  const total = concreteCount + abstractCount
+  const ratio = total > 0 ? concreteCount / total : 0.5
+  const score = Math.min(100, Math.max(0, Math.round(ratio * 120)))
+
+  const flags = []
+  if (abstractCount > concreteCount) flags.push(`High abstraction, low specificity. ${abstractCount} abstract terms vs ${Math.round(concreteCount)} concrete details.`)
+  if (properNouns < 2) flags.push('Add named people, places, or events. Specifics make your essay memorable.')
+  if (ratio < 0.4) flags.push('Essay reads like a philosophical essay, not a personal story. Ground ideas in real moments.')
+
+  return { score, concreteCount: Math.round(concreteCount), abstractCount, ratio, flags }
+}
+
+/* ================================================================
+   MODULE 5: INSIGHT QUALITY (20 pts)
+   ================================================================ */
+function analyzeInsight(text) {
+  const strongCount = countMatches(text, STRONG_INSIGHT)
+  const weakCount = countMatches(text, WEAK_INSIGHT)
+  const clichesFound = CLICHE_PHRASES.filter(p => text.toLowerCase().includes(p.text))
+
+  const total = strongCount + weakCount
+  let score
+  if (total === 0) {
+    score = 30 // some credit for trying
+  } else {
+    const ratio = strongCount / total
+    score = Math.round(ratio * 100)
+  }
+  // Penalize cliches
+  score = Math.max(0, score - clichesFound.length * 8)
+  score = Math.min(100, Math.max(0, score))
+
+  const flags = []
+  if (strongCount === 0) flags.push('No deep reflection detected. Add moments where you questioned yourself or changed your mind.')
+  if (weakCount > strongCount) flags.push('Insights are generic ("it taught me", "I learned"). Ground them in specific moments.')
+  if (clichesFound.length > 0) flags.push(`${clichesFound.length} cliche phrase(s): ${clichesFound.slice(0, 3).map(c => `"${c.text}"`).join(', ')}`)
+
+  return { score, strongCount, weakCount, clichesFound, flags }
+}
+
+/* ================================================================
+   MODULE 6: PROMPT ALIGNMENT (10 pts)
+   ================================================================ */
+function analyzeAlignment(text, essayTypeId) {
+  const lower = text.toLowerCase()
+  const type = ESSAY_TYPES.find(t => t.id === essayTypeId) || ESSAY_TYPES[0]
+  const checks = []
+  let passed = 0
+
+  // Common checks
+  const hasIdentity = /\bi am\b|\bwho i\b|\bpart of me\b|\bmy identity\b|\bwhat makes me\b|\bdefines me\b/i.test(text)
+  const hasPersonalStakes = /\bmatters to me\b|\bcannot imagine\b|\bwithout this\b|\bessential\b|\bcore of\b|\bheart of\b/i.test(text)
+  const hasRealWorld = /\bin my life\b|\bat school\b|\bat home\b|\bin class\b|\bmy family\b|\bmy community\b|\bmy team\b/i.test(text)
+  const hasSubjectPassion = /\bfascinated\b|\bcaptivated\b|\bdrawn to\b|\bcompelled\b|\bcuriosity\b|\bintrigued\b/i.test(text)
+  const hasSpecificCollege = /\b(program|department|professor|campus|lab|research|course|class at|club at)\b/i.test(text)
+  const hasFutureGoals = /\bi want to\b|\bi plan to\b|\bi hope to\b|\bin the future\b|\bmy goal\b|\bcareer\b/i.test(text)
+  const hasAcademicEngagement = /\bresearch\b|\bstudy\b|\breadings?\b|\bproject\b|\bexperiment\b|\btheory\b/i.test(text)
+
+  const promptChecks = {
+    identity: { met: hasIdentity, label: 'Personal identity/meaning present' },
+    significance: { met: hasPersonalStakes || hasIdentity, label: 'Personal significance shown' },
+    personal_stakes: { met: hasPersonalStakes, label: 'Stakes or emotional investment present' },
+    incomplete_without: { met: hasPersonalStakes, label: '"Incomplete without it" feeling conveyed' },
+    subject_passion: { met: hasSubjectPassion, label: 'Subject passion demonstrated' },
+    academic_engagement: { met: hasAcademicEngagement, label: 'Academic engagement shown' },
+    future_goals: { met: hasFutureGoals, label: 'Future goals mentioned' },
+    specific_college: { met: hasSpecificCollege, label: 'Specific college references found' },
+    program_fit: { met: hasSpecificCollege && hasSubjectPassion, label: 'Program fit articulated' },
+    campus_culture: { met: /\bcommunity\b|\bcampus\b|\bstudents\b|\benvironment\b/i.test(text), label: 'Campus culture referenced' },
+    subject_interest: { met: hasSubjectPassion, label: 'Subject interest shown' },
+    experience: { met: hasRealWorld, label: 'Relevant experience described' },
+    future_application: { met: hasFutureGoals, label: 'Future application of major described' },
+  }
+
+  for (const req of type.prompts) {
+    const check = promptChecks[req]
+    if (check) {
+      checks.push({ ...check, required: req })
+      if (check.met) passed++
+    }
+  }
+
+  const score = checks.length > 0 ? Math.round((passed / checks.length) * 100) : 50
+
+  const flags = []
+  const missed = checks.filter(c => !c.met)
+  if (missed.length > 0) flags.push(`Missing prompt elements: ${missed.map(m => m.label).join('; ')}`)
+  if (!hasRealWorld && !hasPersonalStakes) flags.push('Topic dominates over personal story. Make it about YOU, not the subject.')
+
+  return { score, checks, passed, total: checks.length, flags }
+}
+
+/* ================================================================
+   MODULE 7: WRITING MECHANICS (5 pts)
+   ================================================================ */
+const BASELINE_SENTENCE_LENGTH = { mean: 15.2, stdDev: 6.8 }
+
+function analyzeMechanics(text) {
+  const sentences = splitSentences(text)
   const lengths = sentences.map(s => s.split(/\s+/).filter(w => w.length > 0).length)
-  const mean = lengths.reduce((a, b) => a + b, 0) / lengths.length
-  const variance = lengths.reduce((sum, l) => sum + (l - mean) ** 2, 0) / lengths.length
+
+  // Sentence length stats
+  const mean = lengths.length > 0 ? lengths.reduce((a, b) => a + b, 0) / lengths.length : 0
+  const variance = lengths.length > 0 ? lengths.reduce((sum, l) => sum + (l - mean) ** 2, 0) / lengths.length : 0
   const stdDev = Math.sqrt(variance)
+
+  // Histogram
   const buckets = { '1-5': 0, '6-10': 0, '11-15': 0, '16-20': 0, '21-25': 0, '26-30': 0, '31+': 0 }
   for (const l of lengths) {
     if (l <= 5) buckets['1-5']++
@@ -233,149 +430,84 @@ function analyzeSentenceLength(text) {
     else buckets['31+']++
   }
   const histogram = {}
-  for (const k of Object.keys(buckets)) histogram[k] = buckets[k] / lengths.length
-  const studentCV = mean > 0 ? stdDev / mean : 0
-  const baselineCV = BASELINE.sentenceLength.stdDev / BASELINE.sentenceLength.mean
-  const cvDiff = Math.abs(studentCV - baselineCV)
-  const score = Math.max(0, Math.min(100, Math.round(100 - cvDiff * 200)))
-  const feedback = []
-  if (mean > BASELINE.sentenceLength.mean + 5)
-    feedback.push(`Average sentence is ${Math.round(mean)} words (baseline: ${BASELINE.sentenceLength.mean}). Your sentences run long.`)
-  if (mean < BASELINE.sentenceLength.mean - 5)
-    feedback.push(`Average sentence is ${Math.round(mean)} words (baseline: ${BASELINE.sentenceLength.mean}). Your sentences are quite short.`)
-  if (stdDev > BASELINE.sentenceLength.stdDev + 4)
-    feedback.push(`High variation in sentence length (std dev: ${stdDev.toFixed(1)} vs typical ${BASELINE.sentenceLength.stdDev}). Essay feels uneven.`)
-  if (stdDev < BASELINE.sentenceLength.stdDev - 3)
-    feedback.push(`Very uniform sentence lengths. Mix shorter and longer for better rhythm.`)
-  const longSentences = sentences.filter((_, i) => lengths[i] > 30).slice(0, 3)
-  if (longSentences.length > 0)
-    feedback.push(`${longSentences.length} sentence(s) over 30 words. Consider splitting.`)
-  return { score, lengths, mean, stdDev, histogram, feedback, longSentences }
+  for (const k of Object.keys(buckets)) histogram[k] = lengths.length > 0 ? buckets[k] / lengths.length : 0
+
+  // Grammar issues
+  const grammarIssues = []
+  const passiveVoice = [...text.matchAll(/\b(was|were|is|are|been|being)\s+(been\s+)?(made|done|given|taken|seen|known|found|told|shown|left|heard|kept|held|brought|written|provided)\b/gi)]
+  grammarIssues.push(...passiveVoice.map(m => ({ type: 'Passive voice', text: m[0] })))
+  const repeatedWords = [...text.matchAll(/\b(\w+)\s+\1\b/gi)]
+  grammarIssues.push(...repeatedWords.map(m => ({ type: 'Repeated word', text: m[0] })))
+
+  // Score (lenient, only 5% weight)
+  const cvDiff = mean > 0 ? Math.abs((stdDev / mean) - (BASELINE_SENTENCE_LENGTH.stdDev / BASELINE_SENTENCE_LENGTH.mean)) : 0
+  const lengthScore = Math.max(0, 100 - cvDiff * 150)
+  const grammarScore = Math.max(0, 100 - grammarIssues.length * 5)
+  const score = Math.round((lengthScore + grammarScore) / 2)
+
+  const longSentences = sentences.filter((_, i) => lengths[i] > 30).length
+
+  const flags = []
+  if (mean > 20) flags.push(`Average sentence: ${Math.round(mean)} words (baseline: ${BASELINE_SENTENCE_LENGTH.mean}). Sentences run long.`)
+  if (longSentences > 0) flags.push(`${longSentences} sentence(s) over 30 words.`)
+  if (grammarIssues.length > 3) flags.push(`${grammarIssues.length} grammar issues detected.`)
+
+  return { score: Math.min(100, Math.max(0, score)), mean, stdDev, histogram, grammarIssues, longSentences, flags }
 }
 
-function checkSpelling(text) {
-  const words = text.match(/\b[a-zA-Z']+\b/g) || []
-  const found = []
-  const seen = new Set()
-  for (const w of words) {
-    const lower = w.toLowerCase()
-    if (lower.length <= 2 || seen.has(lower)) continue
-    if (w[0] === w[0].toUpperCase() && w[0] !== w[0].toLowerCase()) continue
-    if (MISSPELLINGS[lower]) {
-      found.push({ word: w, suggestion: MISSPELLINGS[lower] })
-      seen.add(lower)
-    }
-  }
-  return { score: Math.max(0, Math.round(100 - found.length * 8)), items: found }
-}
-
-function checkGrammar(text) {
-  const issues = []
-  for (const rule of GRAMMAR_RULES) {
-    const re = new RegExp(rule.re.source, rule.re.flags)
-    for (const m of text.matchAll(re)) {
-      issues.push({ rule: rule.name, msg: rule.msg, matched: m[0] })
-    }
-  }
-  return { score: Math.max(0, Math.round(100 - issues.length * 4)), items: issues }
-}
-
-function analyzeWordRepetition(text) {
-  const words = text.toLowerCase().match(/\b[a-z']+\b/g) || []
-  const total = words.length
-  const freq = {}
-  for (const w of words) {
-    if (STOP_WORDS.has(w) || w.length <= 2) continue
-    freq[w] = (freq[w] || 0) + 1
-  }
-  const threshold = total * (BASELINE.wordRepetition.maxFrequencyPercent / 100)
-  const overused = Object.entries(freq)
-    .filter(([, c]) => c > threshold && c >= 3)
-    .sort((a, b) => b[1] - a[1])
-    .map(([word, count]) => ({
-      word, count, pct: ((count / total) * 100).toFixed(1),
-      synonyms: SYNONYMS[word] || null,
-    }))
-  return { score: Math.max(0, Math.round(100 - overused.length * 12)), overused }
-}
-
-function countFirstPerson(text) {
-  const totalWords = countWords(text)
-  if (totalWords === 0) return { score: 100, iCount: 0, per100: 0, myCount: 0, meCount: 0, myselfCount: 0, total: 0 }
-  const iCount = (text.match(/\bI\b/g) || []).length
-  const myCount = (text.match(/\bmy\b/gi) || []).length
-  const meCount = (text.match(/\bme\b/gi) || []).length
-  const myselfCount = (text.match(/\bmyself\b/gi) || []).length
-  const total = iCount + myCount + meCount + myselfCount
-  const per100 = (iCount / totalWords) * 100
-  let score = 100
-  if (per100 > BASELINE.iCount.maxPer100Words)
-    score = Math.max(0, Math.round(100 - (per100 - BASELINE.iCount.maxPer100Words) * 15))
-  else if (per100 < 1.0 && totalWords > 200) score = 60
-  return { score, iCount, myCount, meCount, myselfCount, total, per100 }
-}
-
-function checkOriginality(text) {
-  const lower = text.toLowerCase()
-  const found = CLICHE_PHRASES.filter(p => lower.includes(p.text))
-  return { score: Math.max(0, Math.round(100 - found.length * 12)), items: found }
-}
-
-function matchPatterns(text, patterns) {
-  const found = []
-  for (const p of patterns) {
-    const re = new RegExp(p.source, p.flags)
-    for (const m of text.matchAll(re)) found.push(m[0])
-  }
-  return found
-}
-
-function detectNegativeSelfTalk(text) {
-  const items = matchPatterns(text, NEGATIVE_PATTERNS)
-  return { score: Math.max(0, Math.round(100 - items.length * 15)), items }
-}
-
-function detectOverboasting(text) {
-  const items = matchPatterns(text, BOASTING_PATTERNS)
-  return { score: Math.max(0, Math.round(100 - items.length * 15)), items }
-}
-
-function runAllChecks(text) {
-  const sl = analyzeSentenceLength(text)
-  const sp = checkSpelling(text)
-  const gr = checkGrammar(text)
-  const wr = analyzeWordRepetition(text)
-  const fp = countFirstPerson(text)
-  const or_ = checkOriginality(text)
-  const ns = detectNegativeSelfTalk(text)
-  const ob = detectOverboasting(text)
+/* ================================================================
+   RUN ALL CHECKS
+   ================================================================ */
+function runAllChecks(text, essayTypeId) {
+  const narrative = analyzeNarrative(text)
+  const agency = analyzeAgency(text)
+  const transformation = analyzeTransformation(text)
+  const specificity = analyzeSpecificity(text)
+  const insight = analyzeInsight(text)
+  const alignment = analyzeAlignment(text, essayTypeId)
+  const mechanics = analyzeMechanics(text)
 
   const checks = [
-    { key: 'sentenceLength', label: 'Sentence structure', score: sl.score },
-    { key: 'spelling', label: 'Spelling', score: sp.score },
-    { key: 'grammar', label: 'Grammar', score: gr.score },
-    { key: 'wordRepetition', label: 'Word variety', score: wr.score },
-    { key: 'firstPerson', label: 'First-person balance', score: fp.score },
-    { key: 'originality', label: 'Originality', score: or_.score },
-    { key: 'negativeSelfTalk', label: 'Negative self-talk', score: ns.score },
-    { key: 'overboasting', label: 'Overboasting', score: ob.score },
+    { key: 'narrative', label: 'Narrative presence', score: narrative.score, weight: 15 },
+    { key: 'agency', label: 'Personal agency', score: agency.score, weight: 15 },
+    { key: 'transformation', label: 'Transformation arc', score: transformation.score, weight: 20 },
+    { key: 'specificity', label: 'Specificity', score: specificity.score, weight: 15 },
+    { key: 'insight', label: 'Insight quality', score: insight.score, weight: 20 },
+    { key: 'alignment', label: 'Prompt alignment', score: alignment.score, weight: 10 },
+    { key: 'mechanics', label: 'Writing mechanics', score: mechanics.score, weight: 5 },
   ]
-  const overall = Math.round(checks.reduce((s, c) => s + c.score, 0) / checks.length)
+
+  const overall = Math.round(checks.reduce((s, c) => s + c.score * c.weight, 0) / 100)
+
+  // Collect all flags
+  const allFlags = [
+    ...narrative.flags, ...agency.flags, ...transformation.flags,
+    ...specificity.flags, ...insight.flags, ...alignment.flags, ...mechanics.flags,
+  ]
+
+  // Classify essay type
+  let essayClass = 'Balanced'
+  if (narrative.ratio < 0.3) essayClass = 'Topic-explanation (weak)'
+  else if (narrative.ratio > 0.7) essayClass = 'Story-driven'
+  else if (insight.strongCount > insight.weakCount) essayClass = 'Reflection-heavy'
+
   return {
-    checks, overall,
-    details: { sentenceLength: sl, spelling: sp, grammar: gr, wordRepetition: wr, firstPerson: fp, originality: or_, negativeSelfTalk: ns, overboasting: ob },
+    checks, overall, essayClass, allFlags,
+    details: { narrative, agency, transformation, specificity, insight, alignment, mechanics },
   }
 }
 
 /* ================================================================
    COMPONENTS
    ================================================================ */
-
-function TriColorBar({ score, label, thick }) {
+function TriColorBar({ score, label, weight, thick }) {
   const pct = Math.max(0, Math.min(100, score))
   return (
     <div className={'rc-row' + (thick ? ' rc-row-thick' : '')}>
-      <div className={'rc-lbl' + (thick ? ' rc-lbl-bold' : '')}>{label}</div>
+      <div className={'rc-lbl' + (thick ? ' rc-lbl-bold' : '')}>
+        {label}
+        {weight && !thick && <span className="rc-weight">({weight}%)</span>}
+      </div>
       <div className={'rc-bar-wrap' + (thick ? ' rc-bar-thick' : '')}>
         <div className="rc-zone rc-z-low" style={{ width: '33.33%' }} />
         <div className="rc-zone rc-z-med" style={{ width: '33.34%' }} />
@@ -412,116 +544,53 @@ function Histogram({ student, baseline }) {
   )
 }
 
-function DetailSection({ title, children, forceOpen }) {
-  const [open, setOpen] = useState(false)
-  const isOpen = open || forceOpen
-  return (
-    <div className="detail-section">
-      <button className="detail-toggle" onClick={() => setOpen(!open)} type="button">
-        {isOpen ? '\u25BC' : '\u25B6'} {title}
-      </button>
-      {isOpen && <div className="detail-body">{children}</div>}
-    </div>
-  )
-}
-
 function ReportCard({ result, meta, onBack }) {
   const reportRef = useRef(null)
   const [downloading, setDownloading] = useState(false)
-  const [forceOpen, setForceOpen] = useState(false)
 
   const handleDownload = useCallback(async () => {
     if (!reportRef.current || downloading) return
     setDownloading(true)
     emitEvent('report_download', { extraData: { overall: result.overall } })
-
     await new Promise(r => setTimeout(r, 100))
-
     try {
       const el = reportRef.current
-      // Hide action buttons and collapsed detail sections during capture
       const actions = el.querySelector('.rc-actions')
-      const detailSections = el.querySelectorAll('.detail-section')
       if (actions) actions.style.display = 'none'
-      detailSections.forEach(d => { d.style.display = 'none' })
-
-      const canvas = await html2canvas(el, {
-        scale: 2,
-        useCORS: true,
-        backgroundColor: '#faf7f2',
-        logging: false,
-      })
-
+      const canvas = await html2canvas(el, { scale: 2, useCORS: true, backgroundColor: '#faf7f2', logging: false })
       if (actions) actions.style.display = ''
-      detailSections.forEach(d => { d.style.display = '' })
-
       const imgData = canvas.toDataURL('image/png')
-      const imgW = canvas.width
-      const imgH = canvas.height
-
-      const pdfW = 210
-      const pdfH = 297
-      const margin = 8
-      const contentW = pdfW - margin * 2
-      const contentH = pdfH - margin * 2
-
-      // Scale to fit entire report on one page
-      const scaleByW = contentW / imgW
-      const scaleByH = contentH / imgH
-      const scale = Math.min(scaleByW, scaleByH)
-
-      const renderW = imgW * scale
-      const renderH = imgH * scale
-
-      // Center on page
-      const offsetX = margin + (contentW - renderW) / 2
-      const offsetY = margin + (contentH - renderH) / 2
-
+      const pdfW = 210, pdfH = 297, margin = 8
+      const contentW = pdfW - margin * 2, contentH = pdfH - margin * 2
+      const scale = Math.min(contentW / canvas.width, contentH / canvas.height)
+      const renderW = canvas.width * scale, renderH = canvas.height * scale
       const pdf = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' })
-      pdf.addImage(imgData, 'PNG', offsetX, offsetY, renderW, renderH)
-
-      const filename = `essay-report-${(meta.college || 'essay').replace(/\s+/g, '-').toLowerCase()}-${new Date().toISOString().slice(0, 10)}.pdf`
-      pdf.save(filename)
+      pdf.addImage(imgData, 'PNG', margin + (contentW - renderW) / 2, margin, renderW, renderH)
+      pdf.save(`essay-report-${(meta.college || 'essay').replace(/\s+/g, '-').toLowerCase()}-${new Date().toISOString().slice(0, 10)}.pdf`)
     } catch (err) {
-      console.error('PDF generation failed:', err)
+      console.error('PDF failed:', err)
       window.print()
-    } finally {
-      setDownloading(false)
-    }
+    } finally { setDownloading(false) }
   }, [result.overall, downloading, meta.college])
 
-  const { details, checks, overall } = result
-  const passed = overall >= 70
-  const writingChecks = checks.slice(0, 5)
-  const toneChecks = checks.slice(5)
-
-  const priorityFixes = []
-  if (details.firstPerson.per100 > BASELINE.iCount.maxPer100Words)
-    priorityFixes.push(`Too many "I/my/me" (${details.firstPerson.iCount} "I"s = ${details.firstPerson.per100.toFixed(1)} per 100 words, baseline: ${BASELINE.iCount.per100Words}). Lead sentences with actions instead.`)
-  if (details.wordRepetition.overused.length > 0)
-    priorityFixes.push(`Overused words: ${details.wordRepetition.overused.map(w => `"${w.word}" (${w.count}x)`).join(', ')}. Use synonyms.`)
-  if (details.originality.items.length > 0)
-    priorityFixes.push(`${details.originality.items.length} cliche phrase(s). Replace with specific details.`)
-  if (details.spelling.items.length > 0)
-    priorityFixes.push(`${details.spelling.items.length} spelling error(s): ${details.spelling.items.map(i => `"${i.word}" \u2192 "${i.suggestion}"`).join(', ')}.`)
-  if (details.sentenceLength.longSentences && details.sentenceLength.longSentences.length > 0)
-    priorityFixes.push(`${details.sentenceLength.longSentences.length} sentence(s) over 30 words. Split for readability.`)
-  if (details.negativeSelfTalk.items.length > 0)
-    priorityFixes.push(`Negative self-talk: ${details.negativeSelfTalk.items.slice(0, 3).map(i => `"${i}"`).join(', ')}. Reframe as growth.`)
-  if (details.overboasting.items.length > 0)
-    priorityFixes.push(`Overboasting: ${details.overboasting.items.slice(0, 3).map(i => `"${i}"`).join(', ')}. Show achievements through actions.`)
+  const { details, checks, overall, essayClass, allFlags } = result
+  const passed = overall >= 60
+  const storyChecks = checks.slice(0, 3)
+  const contentChecks = checks.slice(3, 6)
+  const mechChecks = checks.slice(6)
 
   return (
     <div className="rc-shell" ref={reportRef}>
       <div className="rc-hdr">
         <div className="rc-hdr-l">
           <h2 className="rc-hdr-title">Essay feedback report</h2>
-          <div className="rc-hdr-sub">Boomer Counselor / Phase 1 analysis</div>
+          <div className="rc-hdr-sub">Boomer Counselor / v2 Story Intelligence</div>
         </div>
         <div className="rc-hdr-r">
           {meta.college && <div className="rc-hdr-nm">{meta.college}</div>}
           <div className="rc-hdr-mt">{meta.essayType}</div>
           <div className="rc-hdr-mt">{meta.wordCount} words / {new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</div>
+          <div className="rc-hdr-mt">Type: {essayClass}</div>
         </div>
       </div>
 
@@ -534,13 +603,18 @@ function ReportCard({ result, meta, onBack }) {
         </div>
 
         <div className="rc-section">
-          <div className="rc-stitle">Writing quality</div>
-          {writingChecks.map(c => <TriColorBar key={c.key} label={c.label} score={c.score} />)}
+          <div className="rc-stitle">Story intelligence</div>
+          {storyChecks.map(c => <TriColorBar key={c.key} label={c.label} score={c.score} weight={c.weight} />)}
         </div>
 
         <div className="rc-section">
-          <div className="rc-stitle">Content and tone</div>
-          {toneChecks.map(c => <TriColorBar key={c.key} label={c.label} score={c.score} />)}
+          <div className="rc-stitle">Content depth</div>
+          {contentChecks.map(c => <TriColorBar key={c.key} label={c.label} score={c.score} weight={c.weight} />)}
+        </div>
+
+        <div className="rc-section">
+          <div className="rc-stitle">Writing mechanics</div>
+          {mechChecks.map(c => <TriColorBar key={c.key} label={c.label} score={c.score} weight={c.weight} />)}
         </div>
 
         <div className="rc-section rc-overall-section">
@@ -549,74 +623,34 @@ function ReportCard({ result, meta, onBack }) {
 
         <div className="rc-section">
           <div className="rc-stitle">Sentence length distribution</div>
-          <Histogram student={details.sentenceLength.histogram} baseline={BASELINE.sentenceLength.histogram} />
-          {details.sentenceLength.feedback.map((f, i) => (
-            <div className="rc-detail-note" key={i}>{f}</div>
-          ))}
+          <Histogram student={details.mechanics.histogram} baseline={{ '1-5': 0.05, '6-10': 0.18, '11-15': 0.30, '16-20': 0.25, '21-25': 0.13, '26-30': 0.06, '31+': 0.03 }} />
         </div>
 
-        {details.spelling.items.length > 0 && (
-          <DetailSection forceOpen={forceOpen} title={`Spelling errors (${details.spelling.items.length})`}>
-            {details.spelling.items.map((item, i) => (
-              <div className="detail-item" key={i}><span className="detail-wrong">{item.word}</span> {'\u2192'} <span className="detail-right">{item.suggestion}</span></div>
+        {allFlags.length > 0 && (
+          <div className="rc-section">
+            <div className="rc-stitle">Diagnostic flags</div>
+            {allFlags.map((f, i) => (
+              <div className="rc-flag" key={i}><span className="rc-flag-icon">!</span> {f}</div>
             ))}
-          </DetailSection>
-        )}
-
-        {details.grammar.items.length > 0 && (
-          <DetailSection forceOpen={forceOpen} title={`Grammar issues (${details.grammar.items.length})`}>
-            {details.grammar.items.slice(0, 15).map((item, i) => (
-              <div className="detail-item" key={i}><span className="detail-rule">{item.rule}:</span> "{item.matched}"</div>
-            ))}
-          </DetailSection>
-        )}
-
-        {details.wordRepetition.overused.length > 0 && (
-          <DetailSection forceOpen={forceOpen} title={`Overused words (${details.wordRepetition.overused.length})`}>
-            {details.wordRepetition.overused.map((item, i) => (
-              <div className="detail-item" key={i}>
-                <span className="detail-wrong">"{item.word}"</span> used {item.count}x ({item.pct}%)
-                {item.synonyms && <span className="detail-synonyms"> Try: {item.synonyms.join(', ')}</span>}
-              </div>
-            ))}
-          </DetailSection>
-        )}
-
-        {details.originality.items.length > 0 && (
-          <DetailSection forceOpen={forceOpen} title={`Cliche phrases (${details.originality.items.length})`}>
-            {details.originality.items.map((item, i) => (
-              <div className="detail-item" key={i}>
-                <span className="detail-wrong">"{item.text}"</span>
-                <span className="detail-fix">{item.fix}</span>
-              </div>
-            ))}
-          </DetailSection>
-        )}
-
-        {details.firstPerson.iCount > 0 && (
-          <DetailSection forceOpen={forceOpen} title="First-person pronoun usage">
-            <div className="detail-item">"I" appears {details.firstPerson.iCount} times ({details.firstPerson.per100.toFixed(1)} per 100 words, baseline: {BASELINE.iCount.per100Words})</div>
-            <div className="detail-item">"my" {details.firstPerson.myCount}x / "me" {details.firstPerson.meCount}x / "myself" {details.firstPerson.myselfCount}x / Total: {details.firstPerson.total}</div>
-          </DetailSection>
+          </div>
         )}
 
         <div className={'rc-conclusion ' + (passed ? 'rc-pass' : 'rc-fail')}>
           <div className="rc-conclusion-icon">{passed ? '\u2713' : '\u2717'}</div>
           <div className="rc-conclusion-body">
-            <div className="rc-conclusion-title">{passed ? 'Your essay is ready for expert review' : 'Your essay needs revision'}</div>
-            <div className="rc-conclusion-score">Overall score: <strong>{overall}/100</strong></div>
-            {priorityFixes.length > 0 && (
-              <div className="rc-fixes">
-                <div className="rc-fixes-title">Priority fixes:</div>
-                <ol className="rc-fixes-list">
-                  {priorityFixes.slice(0, 5).map((f, i) => <li key={i}>{f}</li>)}
-                </ol>
+            <div className="rc-conclusion-title">{passed ? 'Your essay is ready for expert review' : 'Your essay needs significant revision'}</div>
+            <div className="rc-conclusion-score">Overall score: <strong>{overall}/100</strong> (weighted)</div>
+
+            {details.transformation.arcStrength === 0 && (
+              <div className="rc-conclusion-rec" style={{ fontWeight: 500, fontStyle: 'normal' }}>
+                Critical: No transformation arc detected. Add a clear before/after shift showing how you changed.
               </div>
             )}
+
             <div className="rc-conclusion-rec">
               {passed
-                ? 'Make the minor revisions above, then take this essay to a counselor for final review before submission.'
-                : 'Rewrite your essay addressing the priority fixes above, then re-analyze. Once you hit 70+, take it to a counselor.'}
+                ? 'This essay shows personal depth. Take it to a counselor for final polish before submission.'
+                : 'Rewrite focusing on: personal stories over explanation, specific moments over abstract ideas, and a clear transformation arc. Then re-analyze.'}
             </div>
           </div>
         </div>
@@ -657,18 +691,13 @@ export default function App() {
     e.preventDefault()
     if (!canSubmit) return
     setAnalyzing(true)
-    emitEvent('essay_submit', {
-      action: 'submit', targetLabel: essayType,
-      extraData: { essay_type: essayType, college, word_count: wordCount },
-    })
+    const typeObj = ESSAY_TYPES.find(t => t.label === essayType)
+    emitEvent('essay_submit', { action: 'submit', targetLabel: essayType, extraData: { essay_type: essayType, college, word_count: wordCount } })
     setTimeout(() => {
-      const res = runAllChecks(essay)
+      const res = runAllChecks(essay, typeObj ? typeObj.id : 'commonapp')
       setResult(res)
       setAnalyzing(false)
-      emitEvent('report_generated', {
-        action: 'analyze',
-        extraData: { overall: res.overall, scores: Object.fromEntries(res.checks.map(c => [c.key, c.score])) },
-      })
+      emitEvent('report_generated', { action: 'analyze', extraData: { overall: res.overall, essayClass: res.essayClass, scores: Object.fromEntries(res.checks.map(c => [c.key, c.score])) } })
     }, 100)
   }
 
@@ -708,7 +737,7 @@ export default function App() {
             <label className="ef-label" htmlFor="ef-type">Essay type<span className="ef-req">*</span></label>
             <select id="ef-type" className="ef-select" value={essayType} onChange={e => setEssayType(e.target.value)} required>
               <option value="">Select essay type...</option>
-              {ESSAY_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+              {ESSAY_TYPES.map(t => <option key={t.id} value={t.label}>{t.label}</option>)}
             </select>
           </div>
           <div className="ef-field">
