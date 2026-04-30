@@ -1002,6 +1002,37 @@ function runAllChecks(text, essayTypeId, fingerprints, tgSpelling = [], tgGramma
   // 9. COMBINATION: negative + boasting together = extra -3
   if (negativeTalk.count > 0 && overboasting.count > 0) score -= 3
 
+  /* ============================================================
+     SEVERITY ENGINE
+     Many small issues = small penalty.
+     Many major issues stacked = exponential penalty.
+     This is the difference between "checklist scorer" and
+     "holistic evaluator". When writing quality has actually
+     collapsed, the score has to collapse with it.
+     ============================================================ */
+  const flags = {
+    extreme_repetition: repetition.overused.length > 0 && repetition.overused[0].count >= 8,
+    structure_breakdown: (mechanics.histogram && mechanics.histogram['31+'] || 0) > 0.8,
+    tone_conflict: negativeTalk.count > 0 && overboasting.count > 0,
+    i_overuse_extreme: repetition.iPer100 > 7,
+    run_on_dominance: mean > 30,
+  }
+  const flaggedKeys = Object.keys(flags).filter(k => flags[k])
+  const flagCount = flaggedKeys.length
+
+  let severityMultiplier = 1.0
+  if (flagCount >= 5) severityMultiplier = 0.40
+  else if (flagCount >= 4) severityMultiplier = 0.55
+  else if (flagCount >= 3) severityMultiplier = 0.70
+  else if (flagCount >= 2) severityMultiplier = 0.85
+
+  const preSeverityScore = score
+  score = score * severityMultiplier
+
+  // Tone-conflict hard cap: logical contradiction (self-hate + self-praise)
+  // means the writer doesn't have a coherent voice. Score ceiling = 60.
+  if (flags.tone_conflict) score = Math.min(score, 60)
+
   // Clamp
   const overall = Math.max(0, Math.min(100, Math.round(score)))
 
@@ -1028,6 +1059,13 @@ function runAllChecks(text, essayTypeId, fingerprints, tgSpelling = [], tgGramma
     details: {
       spelling, mechanics, repetition, overboasting, negativeTalk, similarity,
       sentenceStats: { mean: Math.round(mean * 10) / 10, pctOver25: Math.round(longRatio * 100), pctUnder6: Math.round(shortRatio * 100), baseline: 17.2 },
+      severity: {
+        flags: flaggedKeys,
+        flagCount,
+        multiplier: severityMultiplier,
+        preSeverityScore: Math.max(0, Math.min(100, Math.round(preSeverityScore))),
+        toneConflictCap: flags.tone_conflict,
+      },
     },
   }
 }
@@ -1094,6 +1132,33 @@ function ReportCard({ result, meta, onBack }) {
       </div>
 
       <div className="rc-body">
+
+        {/* SEVERITY BANNER - shown when 2+ critical flags triggered */}
+        {details.severity && details.severity.flagCount >= 2 && (
+          <div className="rc-severity" style={{
+            background: '#fff4e6',
+            border: '2px solid #d97706',
+            borderRadius: '6px',
+            padding: '12px 14px',
+            marginBottom: '14px',
+          }}>
+            <div style={{ fontWeight: 700, marginBottom: '6px', color: '#92400e' }}>
+              Critical issues stacked: {details.severity.flagCount} of 5
+            </div>
+            <div style={{ fontSize: '13px', color: '#78350f', marginBottom: '8px' }}>
+              Your base score was {details.severity.preSeverityScore}, but multiple major problems compounded.
+              Final score reduced by {Math.round((1 - details.severity.multiplier) * 100)}%.
+              {details.severity.toneConflictCap ? ' Score capped at 60 due to tone contradiction.' : ''}
+            </div>
+            <ul style={{ margin: 0, paddingLeft: '18px', fontSize: '13px', color: '#78350f' }}>
+              {details.severity.flags.includes('extreme_repetition') && <li>Extreme word repetition (one word used 8+ times)</li>}
+              {details.severity.flags.includes('structure_breakdown') && <li>Structural breakdown (over 80% of sentences exceed 30 words)</li>}
+              {details.severity.flags.includes('tone_conflict') && <li>Tone conflict (self-deprecation and overboasting in the same essay)</li>}
+              {details.severity.flags.includes('i_overuse_extreme') && <li>Extreme "I" overuse (more than 7 per 100 words)</li>}
+              {details.severity.flags.includes('run_on_dominance') && <li>Run-on dominance (average sentence length over 30 words)</li>}
+            </ul>
+          </div>
+        )}
 
         {/* 1. SPELLING */}
         <CheckSection title="1. Spelling" ok={details.spelling.count === 0} okText="No errors found">
