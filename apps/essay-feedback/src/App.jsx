@@ -779,6 +779,37 @@ function checkOverboasting(text) {
 }
 
 /* ================================================================
+   PRACTICAL CHECK 4: NEGATIVE SELF-TALK
+   ================================================================ */
+const NEGATIVE_PATTERNS = [
+  /\bi('m| am) not good (enough|at)\b/gi,
+  /\bi('m| am) (useless|worthless|hopeless|pathetic)\b/gi,
+  /\bi failed\b/gi,
+  /\bmy (biggest )?(weakness|flaw|failure|shortcoming)\b/gi,
+  /\bi('m| am) (bad|terrible|awful|horrible) at\b/gi,
+  /\bi struggle(d)? (with|to)\b/gi,
+  /\bunfortunately,? i\b/gi,
+  /\bi regret\b/gi,
+  /\bi('m| am) (just|only) a\b/gi,
+  /\bi never (could|can|was able)\b/gi,
+  /\bi lack\b/gi,
+  /\bmy (poor|weak|limited)\b/gi,
+  /\bi('m| am) (ashamed|embarrassed)\b/gi,
+  /\bi don'?t (deserve|belong)\b/gi,
+  /\bi('m| am) not (smart|talented|capable|worthy)\b/gi,
+  /\bi can'?t do anything\b/gi,
+]
+
+function checkNegativeSelfTalk(text) {
+  const found = []
+  for (const p of NEGATIVE_PATTERNS) {
+    const re = new RegExp(p.source, p.flags)
+    for (const m of text.matchAll(re)) found.push(m[0])
+  }
+  return { count: found.length, items: found }
+}
+
+/* ================================================================
    MODULE 8: AI DETECTION (Heuristic - risk signal, not verdict)
    ================================================================ */
 const AI_FORMAL_PHRASES = new Set([
@@ -933,6 +964,7 @@ function runAllChecks(text, essayTypeId, fingerprints, dictionary) {
   const spelling = checkSpelling(text, dictionary)
   const repetition = checkRepetition(text)
   const overboasting = checkOverboasting(text)
+  const negativeTalk = checkNegativeSelfTalk(text)
 
   const checks = [
     { key: 'narrative', label: 'How well you tell your story', score: narrative.score, weight: 15 },
@@ -1021,7 +1053,7 @@ function runAllChecks(text, essayTypeId, fingerprints, dictionary) {
 
   return {
     checks, overall, essayClass, allFlags, percentile,
-    details: { narrative, agency, transformation, specificity, insight, alignment, mechanics, similarity, ai, genericness, ending, spelling, repetition, overboasting },
+    details: { narrative, agency, transformation, specificity, insight, alignment, mechanics, similarity, ai, genericness, ending, spelling, repetition, overboasting, negativeTalk },
   }
 }
 
@@ -1215,6 +1247,67 @@ function ReportCard({ result, meta, onBack }) {
             ))
           }
         </div>
+
+        {/* GRAMMAR */}
+        <div className="rc-section">
+          <div className="rc-stitle">Grammar</div>
+          {details.mechanics.grammarIssues.length === 0
+            ? <div className="rc-strength"><span className="rc-strength-icon">{'\u2713'}</span> No grammar issues found</div>
+            : details.mechanics.grammarIssues.slice(0, 8).map((item, i) => (
+              <div className="rc-flag" key={i}>
+                <span className="rc-flag-icon">!</span>
+                <span style={{ color: '#8a7f72', fontWeight: 500 }}>{item.type}:</span> "{item.text}"
+              </div>
+            ))
+          }
+        </div>
+
+        {/* REPETITION + I USAGE */}
+        <div className="rc-section">
+          <div className="rc-stitle">Word repetition and "I" usage</div>
+          {details.repetition.overused.length === 0 && details.repetition.iPer100 <= 5
+            ? <div className="rc-strength"><span className="rc-strength-icon">{'\u2713'}</span> Good word variety</div>
+            : <>
+              {details.repetition.overused.length > 0 && (
+                <div className="rc-flag">
+                  <span className="rc-flag-icon">!</span>
+                  Repeated words: {details.repetition.overused.map(w => `"${w.word}" (${w.count}x)`).join(', ')}
+                </div>
+              )}
+              <div className="rc-flag" style={details.repetition.iPer100 > 5 ? {} : { background: '#f3efe6', borderLeftColor: '#c8bfa8' }}>
+                <span className="rc-flag-icon" style={details.repetition.iPer100 > 5 ? {} : { background: '#c8bfa8' }}>i</span>
+                "I" appears {details.repetition.iCount}x, "my" {details.repetition.myCount}x, "me" {details.repetition.meCount}x ({details.repetition.firstPersonTotal} total in {details.repetition.totalWords} words)
+                {details.repetition.iPer100 > 5 && ' - try starting more sentences with actions instead of "I"'}
+              </div>
+            </>
+          }
+        </div>
+
+        {/* NEGATIVE SELF-TALK */}
+        {details.negativeTalk.count > 0 && (
+          <div className="rc-section">
+            <div className="rc-stitle">Negative self-talk</div>
+            {details.negativeTalk.items.slice(0, 5).map((item, i) => (
+              <div className="rc-flag" key={i}>
+                <span className="rc-flag-icon">!</span>
+                "{item}" - reframe this as growth or learning, not self-criticism
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* OVERBOASTING */}
+        {details.overboasting.count > 0 && (
+          <div className="rc-section">
+            <div className="rc-stitle">Overboasting</div>
+            {details.overboasting.items.slice(0, 5).map((item, i) => (
+              <div className="rc-flag" key={i}>
+                <span className="rc-flag-icon">!</span>
+                "{item}" - show this through actions, not claims
+              </div>
+            ))}
+          </div>
+        )}
 
         {/* READABILITY */}
         <div className="rc-section">
