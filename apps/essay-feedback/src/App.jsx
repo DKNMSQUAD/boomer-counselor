@@ -789,12 +789,23 @@ function runAllChecks(text, essayTypeId, fingerprints) {
 
   // NEW: Core/Depth/Penalty scoring model (admissions-style)
   const coreScore = (narrative.score + specificity.score + agency.score + mechanics.score) / 4 / 100
-  const depthScore = (insight.score * 0.4 + transformation.score * 0.4 + alignment.score * 0.2) / 100
+
+  // FIX 1: Cap alignment at 85% if no explicit stakes language
+  const cappedAlignment = Math.min(alignment.score, (/\bdefines me\b|\bshaped how i\b|\bwithout this\b|\bincomplete\b/i.test(text)) ? 100 : 85)
+  checks.find(c => c.key === 'alignment').score = cappedAlignment
+
+  const depthScore = (insight.score * 0.4 + transformation.score * 0.4 + cappedAlignment * 0.2) / 100
   const penaltyScore = (genericness.score * 0.3 + ending.score * 0.3) / 100
 
   let overall = Math.round(
     (coreScore * 0.50 + depthScore * 0.35 + (1 - penaltyScore) * 0.15) * 100
   )
+
+  // FIX 2: Depth multiplier - reward truly strong essays
+  if (insight.score > 60 && transformation.score > 60) overall = Math.min(100, overall + 5)
+
+  // FIX 3: Do not over-praise guard - shallow essays can't score too high
+  if (insight.score < 50) overall = Math.min(overall, 88)
 
   // GUARDRAIL: Strong narrative + high specificity can never be "needs significant revision"
   if (coreScore > 0.7 && overall < 60) overall = 65
