@@ -1027,35 +1027,52 @@ function ReportCard({ result, meta, onBack }) {
       </div>
 
       <div className="rc-body">
-        <div className="rc-legend">
-          <span><span className="rc-leg-dot" style={{ background: '#4a90d9' }} /> Low</span>
-          <span><span className="rc-leg-dot" style={{ background: '#f5a623' }} /> Medium</span>
-          <span><span className="rc-leg-dot" style={{ background: '#4caf50' }} /> High</span>
-          <span><span className="rc-leg-dot" style={{ background: '#1a1a1a' }} /> Your score</span>
-        </div>
 
+        {/* STATUS TABLE */}
         <div className="rc-section">
-          <div className="rc-stitle">Your story</div>
-          {storyChecks.map(c => <TriColorBar key={c.key} label={c.label} score={c.score} weight={c.weight} interpretation={getInterpretation(c.key, c.score)} />)}
+          <div className="rc-stitle">How your essay performs</div>
+          <div className="rc-status-table">
+            {checks.map(c => {
+              const status = c.score >= 75 ? 'good' : c.score >= 50 ? 'ok' : 'weak'
+              const statusLabel = status === 'good' ? 'Strong' : status === 'ok' ? 'Needs work' : 'Weak'
+              const interp = getInterpretation(c.key, c.score)
+              const fix = {
+                narrative: 'Add more real scenes from your life instead of explaining ideas.',
+                agency: 'Show more moments where YOU made a decision or took action.',
+                transformation: 'Add 1 moment where you realized something important or changed your mind.',
+                specificity: 'Replace vague statements with real names, places, and details.',
+                insight: 'Add 1 moment where you questioned yourself or saw things differently.',
+                alignment: 'Make it clearer why this topic matters to YOU personally.',
+                mechanics: 'Break up long sentences and vary your sentence length.',
+              }[c.key] || ''
+              return (
+                <div className={'rc-status-row rc-status-' + status} key={c.key}>
+                  <div className="rc-status-top">
+                    <span className="rc-status-label">{c.label}</span>
+                    <span className={'rc-status-badge rc-badge-' + status}>{statusLabel}</span>
+                  </div>
+                  {status !== 'good' && (
+                    <div className="rc-status-detail">
+                      <div className="rc-status-why">{interp}</div>
+                      <div className="rc-status-fix">{fix}</div>
+                    </div>
+                  )}
+                </div>
+              )
+            })}
+          </div>
         </div>
 
-        <div className="rc-section">
-          <div className="rc-stitle">Your thinking</div>
-          {contentChecks.map(c => <TriColorBar key={c.key} label={c.label} score={c.score} weight={c.weight} interpretation={getInterpretation(c.key, c.score)} />)}
-        </div>
-
-        <div className="rc-section">
-          <div className="rc-stitle">Writing</div>
-          {mechChecks.map(c => <TriColorBar key={c.key} label={c.label} score={c.score} weight={c.weight} interpretation={getInterpretation(c.key, c.score)} />)}
-        </div>
-
-        <div className="rc-section rc-overall-section">
-          <TriColorBar label="Overall score" score={overall} thick />
+        {/* OVERALL SCORE */}
+        <div className="rc-section rc-overall-box">
+          <div className="rc-overall-score">{overall}<span className="rc-overall-of">/100</span></div>
+          <div className="rc-overall-verdict">{strong ? 'Ready for expert review' : passed ? 'Strong essay with room to deepen' : 'Needs more personal depth'}</div>
           {percentile && (
             <div className="rc-percentile">Top {100 - percentile}% compared to {details.similarity.totalCompared ? details.similarity.totalCompared.toLocaleString() : '6,804'} past essays</div>
           )}
         </div>
 
+        {/* READABILITY */}
         <div className="rc-section">
           <div className="rc-stitle">Are your sentences easy to read?</div>
           <div className="rc-readability">
@@ -1071,6 +1088,7 @@ function ReportCard({ result, meta, onBack }) {
           )}
         </div>
 
+        {/* FIX THESE SENTENCES */}
         {details.mechanics.problematic.length > 0 && (
           <div className="rc-section">
             <div className="rc-stitle">Fix these sentences</div>
@@ -1104,7 +1122,7 @@ function ReportCard({ result, meta, onBack }) {
           ) : null
         })()}
 
-        {/* TOP PRIORITY FIX */}
+        {/* WHAT TO FIX FIRST */}
         {(() => {
           const sortedChecks = [...checks].sort((a, b) => a.score - b.score)
           const weakest = sortedChecks[0]
@@ -1122,13 +1140,14 @@ function ReportCard({ result, meta, onBack }) {
             <div className="rc-section">
               <div className="rc-stitle">What to fix first</div>
               <div className="rc-priority">
-                <span className="rc-priority-label">{weakest.label} ({weakest.score}%)</span>
+                <span className="rc-priority-label">{weakest.label}</span>
                 <span className="rc-priority-msg">{priorityMessages[weakest.key] || 'Strengthen this area for the biggest score improvement.'}</span>
               </div>
             </div>
           )
         })()}
 
+        {/* OTHER FEEDBACK */}
         {allFlags.length > 0 && (
           <div className="rc-section">
             <div className="rc-stitle">Other feedback</div>
@@ -1138,46 +1157,7 @@ function ReportCard({ result, meta, onBack }) {
           </div>
         )}
 
-        {result.similarity && result.similarity.matches && result.similarity.matches.length > 0 && (
-          <div className="rc-section">
-            <div className="rc-stitle">Similarity check (vs {result.similarity.compared_count} past essays)</div>
-            {result.similarity.matches.slice(0, 3).map((m, i) => (
-              <div className="rc-flag" key={i} style={m.similarity > 0.6 ? { borderLeftColor: '#c0392b', background: '#fde8e8' } : {}}>
-                <span className="rc-flag-icon" style={m.similarity > 0.6 ? { background: '#c0392b' } : {}}>!</span>
-                {Math.round(m.similarity * 100)}% match
-                {m.college ? ` (${m.college})` : ''}
-                {m.essay_type ? ` - ${m.essay_type}` : ''}
-              </div>
-            ))}
-          </div>
-        )}
-
-        <div className={'rc-conclusion ' + (passed ? 'rc-pass' : 'rc-fail')}>
-          <div className="rc-conclusion-icon">{passed ? '\u2713' : '\u2717'}</div>
-          <div className="rc-conclusion-body">
-            <div className="rc-conclusion-title">{strong ? 'Your essay is ready for expert review' : passed ? 'Strong essay with room to deepen' : 'Your essay needs more personal depth'}</div>
-            <div className="rc-conclusion-score">Overall score: <strong>{overall}/100</strong> (weighted)</div>
-
-            {details.transformation.arcStrength === 0 && (
-              <div className="rc-conclusion-rec" style={{ fontWeight: 500, fontStyle: 'normal' }}>
-                Consider adding a transformation arc: show how you changed over time, not just what you did.
-              </div>
-            )}
-
-            <div className="rc-conclusion-rec">
-              {strong
-                ? 'This essay shows strong personal depth. Take it to a counselor for final polish before submission.'
-                : passed
-                  ? 'Your essay has a solid foundation. Consider deepening reflection and making your personal growth more explicit, then re-analyze.'
-                  : 'Focus on: specific personal moments over explanation, showing decisions you made, and making your transformation visible. Then re-analyze.'}
-            </div>
-          </div>
-        </div>
-
         <div className="rc-actions no-print">
-          {passed && <button className="rc-btn rc-btn-primary" type="button" onClick={() => {
-            try { window.parent.postMessage({ type: 'bc-switch-tool', toolId: 'tutor-counselor' }, window.location.origin) } catch(e) {}
-          }}>Take to a counselor</button>}
           <button className="rc-btn rc-btn-secondary" onClick={handleDownload} type="button" disabled={downloading}>
             {downloading ? 'Generating PDF...' : 'Download report (PDF)'}
           </button>
@@ -1194,7 +1174,6 @@ function ReportCard({ result, meta, onBack }) {
 export default function App() {
   const [essayType, setEssayType] = useState('')
   const [college, setCollege] = useState('')
-  const [school, setSchool] = useState('')
   const [question, setQuestion] = useState('')
   const [limit, setLimit] = useState('')
   const [essay, setEssay] = useState('')
@@ -1206,7 +1185,7 @@ export default function App() {
   const charCount = essay.length
   const limitNum = parseInt(limit, 10)
   const isOver = Number.isFinite(limitNum) && limitNum > 0 && wordCount > limitNum
-  const canSubmit = essayType && limit && school && essay.trim().length > 50
+  const canSubmit = essayType && limit && essay.trim().length > 50
 
   useEffect(() => {
     emitEvent('tool_open', { action: 'open' })
@@ -1218,7 +1197,7 @@ export default function App() {
     if (!canSubmit) return
     setAnalyzing(true)
     const typeObj = ESSAY_TYPES.find(t => t.label === essayType)
-    emitEvent('essay_submit', { action: 'submit', targetLabel: essayType, extraData: { essay_type: essayType, college, school, word_count: wordCount, question, essay_text: essay } })
+    emitEvent('essay_submit', { action: 'submit', targetLabel: essayType, extraData: { essay_type: essayType, college, word_count: wordCount, question, essay_text: essay } })
     setTimeout(() => {
       const res = runAllChecks(essay, typeObj ? typeObj.id : 'commonapp', fingerprints)
       setResult(res)
@@ -1240,7 +1219,7 @@ export default function App() {
           </div>
         </header>
         <main className="ef-report-page">
-          <ReportCard result={result} meta={{ essayType, college, school, wordCount, question }} onBack={() => setResult(null)} />
+          <ReportCard result={result} meta={{ essayType, college, wordCount, question }} onBack={() => setResult(null)} />
         </main>
       </div>
     )
@@ -1277,10 +1256,6 @@ export default function App() {
                 <input id="ef-limit" className="ef-input" type="number" min="1" placeholder="e.g. 650" value={limit} onChange={e => setLimit(e.target.value)} required />
               </div>
             </div>
-          </div>
-          <div className="ef-field">
-            <label className="ef-label" htmlFor="ef-school">Your school<span className="ef-req">*</span></label>
-            <input id="ef-school" className="ef-input" type="text" placeholder="e.g. Delhi Public School" value={school} onChange={e => setSchool(e.target.value)} required />
           </div>
           <div className="ef-field">
             <label className="ef-label" htmlFor="ef-question">Essay question</label>
