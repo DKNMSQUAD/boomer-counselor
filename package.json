@@ -1,0 +1,9 @@
+{
+  "name": "boomer-counselor",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Multi-app monorepo. Root build script builds every app for Cloudflare Pages.",
+  "scripts": {
+    "build": "./build.sh"
+  }
+}
