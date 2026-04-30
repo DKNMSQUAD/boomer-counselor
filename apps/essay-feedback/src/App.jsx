@@ -866,14 +866,14 @@ const SUBSTANCE_CLICHES = [
 
 // Self-praise patterns: claims of virtue without example
 const SELF_PRAISE_PATTERNS = [
-  /i(?:'m| am)\s+(?:a\s+|an\s+)?(?:hard[-\s]?working|determined|motivated|dedicated|passionate|committed|focused|driven|ambitious|talented|gifted|capable|confident|resilient|persistent|reliable|responsible|disciplined|creative|innovative|exceptional|extraordinary|outstanding|excellent|brilliant|smart|intelligent)/gi,
-  /i(?:'m| am)\s+(?:a\s+)?(?:hard[-\s]?working|determined|motivated|dedicated|passionate|committed|driven|ambitious|talented|gifted|capable|confident|resilient|persistent|reliable|disciplined|creative|innovative)\s*[,]\s*(?:hard[-\s]?working|determined|motivated|dedicated|passionate|committed|driven|ambitious|talented|gifted|capable|confident|resilient|persistent|reliable|disciplined|creative|innovative|and)/gi,
-  /i\s+have\s+always\s+(?:worked\s+hard|believed|known|been|stayed|tried|wanted|loved|enjoyed|dreamed)/gi,
-  /i\s+strongly\s+believe/gi,
-  /i\s+firmly\s+believe/gi,
-  /i\s+truly\s+believe/gi,
-  /i\s+(?:am|'m)\s+capable\s+of/gi,
-  /i\s+(?:am|'m)\s+ready\s+to\s+take\s+on/gi,
+  /\bi(?:'m| am)\s+(?:a\s+|an\s+)?(?:hard[-\s]?working|determined|motivated|dedicated|passionate|committed|focused|driven|ambitious|talented|gifted|capable|confident|resilient|persistent|reliable|responsible|disciplined|creative|innovative|exceptional|extraordinary|outstanding|excellent|brilliant|smart|intelligent)/gi,
+  /\bi(?:'m| am)\s+(?:a\s+)?(?:hard[-\s]?working|determined|motivated|dedicated|passionate|committed|driven|ambitious|talented|gifted|capable|confident|resilient|persistent|reliable|disciplined|creative|innovative)\s*[,]\s*(?:hard[-\s]?working|determined|motivated|dedicated|passionate|committed|driven|ambitious|talented|gifted|capable|confident|resilient|persistent|reliable|disciplined|creative|innovative|and)/gi,
+  /\bi\s+have\s+always\s+(?:worked\s+hard|believed|known|been|stayed|tried|wanted|loved|enjoyed|dreamed)/gi,
+  /\bi\s+strongly\s+believe\b/gi,
+  /\bi\s+firmly\s+believe\b/gi,
+  /\bi\s+truly\s+believe\b/gi,
+  /\bi\s+(?:am|'m)\s+capable\s+of\b/gi,
+  /\bi\s+(?:am|'m)\s+ready\s+to\s+take\s+on\b/gi,
 ]
 
 function checkSubstance(text, wordCount) {
@@ -914,7 +914,7 @@ function checkSubstance(text, wordCount) {
     }
   }
   // Count numbers (ages, years, quantities, scores)
-  const numbers = (text.match(/\d+/g) || []).length
+  const numbers = (text.match(/\b\d+\b/g) || []).length
   // Sensory verbs and concrete-event words (narrative voice indicators)
   const SENSORY_VERBS = new Set(['smelled','tasted','heard','sounded','touched','saw','watched','noticed','glanced','whispered','shouted','laughed','cried','ran','walked','knelt','grabbed','held','stared','flinched','gripped','clutched','sprinted','stumbled','dropped','slammed','knocked'])
   let sensoryHits = 0
@@ -1163,7 +1163,7 @@ function runAllChecks(text, essayTypeId, fingerprints, tgSpelling = [], tgGramma
 
   /* ============================================================
      SUBSTANCE PENALTIES
-     Penalize empty essays: clich\u00e9 saturation, self-praise
+     Penalize empty essays: cliché saturation, self-praise
      without evidence, lack of specific details.
      ============================================================ */
   // 10. CLICHE DENSITY (per 100 words)
@@ -1348,8 +1348,8 @@ function ReportCard({ result, meta, onBack }) {
               {details.severity.flags.includes('tone_conflict') && <li>Tone conflict (self-deprecation and overboasting in the same essay)</li>}
               {details.severity.flags.includes('i_overuse_extreme') && <li>Extreme "I" overuse (more than 7 per 100 words)</li>}
               {details.severity.flags.includes('run_on_dominance') && <li>Run-on dominance (average sentence length over 30 words)</li>}
-              {details.severity.flags.includes('substance_void') && <li>Substance void (essay has clich\u00e9s but almost no specific names, numbers, or sensory details)</li>}
-              {details.severity.flags.includes('cliche_dominance') && <li>Clich\u00e9 dominance (3+ clich\u00e9d phrases per 100 words \u2014 hollow boilerplate)</li>}
+              {details.severity.flags.includes('substance_void') && <li>Substance void (essay has clichés but almost no specific names, numbers, or sensory details)</li>}
+              {details.severity.flags.includes('cliche_dominance') && <li>Cliché dominance (3+ clichéd phrases per 100 words , hollow boilerplate)</li>}
             </ul>
           </div>
         )}
@@ -1456,11 +1456,11 @@ function ReportCard({ result, meta, onBack }) {
             {details.substance.clicheCount > 0 && (
               <div style={{ marginBottom: '10px' }}>
                 <div className="rc-issue" style={{ marginBottom: '4px' }}>
-                  <strong>Clich\u00e9 phrases detected:</strong> {details.substance.clicheCount} ({details.substance.cliPer100} per 100 words)
+                  <strong>Cliché phrases detected:</strong> {details.substance.clicheCount} ({details.substance.cliPer100} per 100 words)
                 </div>
                 <div style={{ fontSize: '13px', color: '#7a5c2e', marginLeft: '8px' }}>
                   {details.substance.clicheHits.slice(0, 8).map((c, i) => (
-                    <span key={i}>\u201c{c}\u201d{i < Math.min(7, details.substance.clicheHits.length - 1) ? ', ' : ''}</span>
+                    <span key={i}>"{c}"{i < Math.min(7, details.substance.clicheHits.length - 1) ? ', ' : ''}</span>
                   ))}
                   {details.substance.clicheHits.length > 8 && <span>, +{details.substance.clicheHits.length - 8} more</span>}
                 </div>
@@ -1476,11 +1476,11 @@ function ReportCard({ result, meta, onBack }) {
                 </div>
                 <div style={{ fontSize: '13px', color: '#7a5c2e', marginLeft: '8px' }}>
                   {details.substance.selfPraiseHits.slice(0, 4).map((c, i) => (
-                    <span key={i}>\u201c{c}\u201d{i < Math.min(3, details.substance.selfPraiseHits.length - 1) ? '; ' : ''}</span>
+                    <span key={i}>"{c}"{i < Math.min(3, details.substance.selfPraiseHits.length - 1) ? '; ' : ''}</span>
                   ))}
                 </div>
                 <div style={{ fontSize: '13px', color: '#0a7a2f', marginTop: '6px' }}>
-                  Don\u2019t tell us you\u2019re hardworking \u2014 show a moment that proves it.
+                  Don't tell us you're hardworking , show a moment that proves it.
                 </div>
               </div>
             )}
@@ -1490,7 +1490,7 @@ function ReportCard({ result, meta, onBack }) {
                   <strong>Lacking specificity:</strong> {details.substance.properNouns} proper nouns, {details.substance.numbers} numbers, {details.substance.sensoryHits} sensory details ({details.substance.specPer100} per 100 words)
                 </div>
                 <div style={{ fontSize: '13px', color: '#0a7a2f', marginTop: '6px' }}>
-                  Real essays have specific names, places, dates, and sensory moments. Generic essays don\u2019t.
+                  Real essays have specific names, places, dates, and sensory moments. Generic essays don't.
                 </div>
               </div>
             )}
