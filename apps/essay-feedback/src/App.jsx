@@ -433,17 +433,17 @@ function ReportCard({ result, meta, onBack }) {
   const handleDownload = useCallback(async () => {
     if (!reportRef.current || downloading) return
     setDownloading(true)
-    setForceOpen(true)
     emitEvent('report_download', { extraData: { overall: result.overall } })
 
-    // Wait for React to render expanded sections
-    await new Promise(r => setTimeout(r, 300))
+    await new Promise(r => setTimeout(r, 100))
 
     try {
       const el = reportRef.current
-      // Hide action buttons during capture
+      // Hide action buttons and collapsed detail sections during capture
       const actions = el.querySelector('.rc-actions')
+      const detailSections = el.querySelectorAll('.detail-section')
       if (actions) actions.style.display = 'none'
+      detailSections.forEach(d => { d.style.display = 'none' })
 
       const canvas = await html2canvas(el, {
         scale: 2,
@@ -453,6 +453,7 @@ function ReportCard({ result, meta, onBack }) {
       })
 
       if (actions) actions.style.display = ''
+      detailSections.forEach(d => { d.style.display = '' })
 
       const imgData = canvas.toDataURL('image/png')
       const imgW = canvas.width
@@ -485,7 +486,6 @@ function ReportCard({ result, meta, onBack }) {
       console.error('PDF generation failed:', err)
       window.print()
     } finally {
-      setForceOpen(false)
       setDownloading(false)
     }
   }, [result.overall, downloading, meta.college])
