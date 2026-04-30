@@ -1,5 +1,7 @@
 import { useState, useMemo, useEffect, useRef, useCallback } from 'react'
 import { emitEvent } from './bcEvents'
+import html2canvas from 'html2canvas'
+import { jsPDF } from 'jspdf'
 import './index.css'
 
 /* ================================================================
@@ -410,23 +412,90 @@ function Histogram({ student, baseline }) {
   )
 }
 
-function DetailSection({ title, children }) {
+function DetailSection({ title, children, forceOpen }) {
   const [open, setOpen] = useState(false)
+  const isOpen = open || forceOpen
   return (
     <div className="detail-section">
       <button className="detail-toggle" onClick={() => setOpen(!open)} type="button">
-        {open ? '\u25BC' : '\u25B6'} {title}
+        {isOpen ? '\u25BC' : '\u25B6'} {title}
       </button>
-      {open && <div className="detail-body">{children}</div>}
+      {isOpen && <div className="detail-body">{children}</div>}
     </div>
   )
 }
 
 function ReportCard({ result, meta, onBack }) {
-  const handleDownload = useCallback(() => {
+  const reportRef = useRef(null)
+  const [downloading, setDownloading] = useState(false)
+  const [forceOpen, setForceOpen] = useState(false)
+
+  const handleDownload = useCallback(async () => {
+    if (!reportRef.current || downloading) return
+    setDownloading(true)
+    setForceOpen(true)
     emitEvent('report_download', { extraData: { overall: result.overall } })
-    window.print()
-  }, [result.overall])
+
+    // Wait for React to render expanded sections
+    await new Promise(r => setTimeout(r, 300))
+
+    try {
+      const el = reportRef.current
+      // Hide action buttons during capture
+      const actions = el.querySelector('.rc-actions')
+      if (actions) actions.style.display = 'none'
+
+      const canvas = await html2canvas(el, {
+        scale: 2,
+        useCORS: true,
+        backgroundColor: '#faf7f2',
+        logging: false,
+      })
+
+      if (actions) actions.style.display = ''
+
+      const imgData = canvas.toDataURL('image/png')
+      const imgW = canvas.width
+      const imgH = canvas.height
+
+      const pdfW = 210
+      const pdfH = 297
+      const margin = 10
+      const contentW = pdfW - margin * 2
+      const scaleFactor = contentW / imgW
+
+      const pdf = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' })
+
+      const pageContentH = pdfH - margin * 2
+      const pageImgH = pageContentH / scaleFactor
+      let yOffset = 0
+      let pageNum = 0
+
+      while (yOffset < imgH) {
+        if (pageNum > 0) pdf.addPage()
+        const sliceH = Math.min(pageImgH, imgH - yOffset)
+        const sliceCanvas = document.createElement('canvas')
+        sliceCanvas.width = imgW
+        sliceCanvas.height = Math.ceil(sliceH)
+        const ctx = sliceCanvas.getContext('2d')
+        ctx.drawImage(canvas, 0, yOffset, imgW, sliceH, 0, 0, imgW, Math.ceil(sliceH))
+        const sliceData = sliceCanvas.toDataURL('image/png')
+        const sliceRenderH = sliceH * scaleFactor
+        pdf.addImage(sliceData, 'PNG', margin, margin, contentW, sliceRenderH)
+        yOffset += sliceH
+        pageNum++
+      }
+
+      const filename = `essay-report-${(meta.college || 'essay').replace(/\s+/g, '-').toLowerCase()}-${new Date().toISOString().slice(0, 10)}.pdf`
+      pdf.save(filename)
+    } catch (err) {
+      console.error('PDF generation failed:', err)
+      window.print()
+    } finally {
+      setForceOpen(false)
+      setDownloading(false)
+    }
+  }, [result.overall, downloading, meta.college])
 
   const { details, checks, overall } = result
   const passed = overall >= 70
@@ -450,7 +519,7 @@ function ReportCard({ result, meta, onBack }) {
     priorityFixes.push(`Overboasting: ${details.overboasting.items.slice(0, 3).map(i => `"${i}"`).join(', ')}. Show achievements through actions.`)
 
   return (
-    <div className="rc-shell">
+    <div className="rc-shell" ref={reportRef}>
       <div className="rc-hdr">
         <div className="rc-hdr-l">
           <h2 className="rc-hdr-title">Essay feedback report</h2>
@@ -494,7 +563,7 @@ function ReportCard({ result, meta, onBack }) {
         </div>
 
         {details.spelling.items.length > 0 && (
-          <DetailSection title={`Spelling errors (${details.spelling.items.length})`}>
+          <DetailSection forceOpen={forceOpen} title={`Spelling errors (${details.spelling.items.length})`}>
             {details.spelling.items.map((item, i) => (
               <div className="detail-item" key={i}><span className="detail-wrong">{item.word}</span> {'\u2192'} <span className="detail-right">{item.suggestion}</span></div>
             ))}
@@ -502,7 +571,7 @@ function ReportCard({ result, meta, onBack }) {
         )}
 
         {details.grammar.items.length > 0 && (
-          <DetailSection title={`Grammar issues (${details.grammar.items.length})`}>
+          <DetailSection forceOpen={forceOpen} title={`Grammar issues (${details.grammar.items.length})`}>
             {details.grammar.items.slice(0, 15).map((item, i) => (
               <div className="detail-item" key={i}><span className="detail-rule">{item.rule}:</span> "{item.matched}"</div>
             ))}
@@ -510,7 +579,7 @@ function ReportCard({ result, meta, onBack }) {
         )}
 
         {details.wordRepetition.overused.length > 0 && (
-          <DetailSection title={`Overused words (${details.wordRepetition.overused.length})`}>
+          <DetailSection forceOpen={forceOpen} title={`Overused words (${details.wordRepetition.overused.length})`}>
             {details.wordRepetition.overused.map((item, i) => (
               <div className="detail-item" key={i}>
                 <span className="detail-wrong">"{item.word}"</span> used {item.count}x ({item.pct}%)
@@ -521,7 +590,7 @@ function ReportCard({ result, meta, onBack }) {
         )}
 
         {details.originality.items.length > 0 && (
-          <DetailSection title={`Cliche phrases (${details.originality.items.length})`}>
+          <DetailSection forceOpen={forceOpen} title={`Cliche phrases (${details.originality.items.length})`}>
             {details.originality.items.map((item, i) => (
               <div className="detail-item" key={i}>
                 <span className="detail-wrong">"{item.text}"</span>
@@ -532,7 +601,7 @@ function ReportCard({ result, meta, onBack }) {
         )}
 
         {details.firstPerson.iCount > 0 && (
-          <DetailSection title="First-person pronoun usage">
+          <DetailSection forceOpen={forceOpen} title="First-person pronoun usage">
             <div className="detail-item">"I" appears {details.firstPerson.iCount} times ({details.firstPerson.per100.toFixed(1)} per 100 words, baseline: {BASELINE.iCount.per100Words})</div>
             <div className="detail-item">"my" {details.firstPerson.myCount}x / "me" {details.firstPerson.meCount}x / "myself" {details.firstPerson.myselfCount}x / Total: {details.firstPerson.total}</div>
           </DetailSection>
@@ -561,7 +630,9 @@ function ReportCard({ result, meta, onBack }) {
 
         <div className="rc-actions no-print">
           {passed && <a className="rc-btn rc-btn-primary" href="/tutor-counselor/" target="_top">Take to a counselor</a>}
-          <button className="rc-btn rc-btn-secondary" onClick={handleDownload} type="button">Download report (PDF)</button>
+          <button className="rc-btn rc-btn-secondary" onClick={handleDownload} type="button" disabled={downloading}>
+            {downloading ? 'Generating PDF...' : 'Download report (PDF)'}
+          </button>
           <button className="rc-btn rc-btn-outline" onClick={onBack} type="button">Analyze another essay</button>
         </div>
       </div>
