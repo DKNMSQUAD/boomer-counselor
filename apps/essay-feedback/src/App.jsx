@@ -1172,179 +1172,48 @@ function ReportCard({ result, meta, onBack }) {
       </div>
 
       <div className="rc-body">
-
-        {/* STATUS TABLE - PRACTICAL CHECKS */}
-        <div className="rc-section">
-          <div className="rc-stitle">How your essay performs</div>
-          <div className="rc-status-table">
-
-            {/* 1. SPELLING */}
-            {(() => {
-              const s = details.spelling
-              const ok = s.count === 0
-              return (
-                <div className={'rc-status-row rc-status-' + (ok ? 'good' : 'weak')}>
-                  <div className="rc-status-top">
-                    <span className="rc-status-label">Spelling</span>
-                    <span className={'rc-status-badge rc-badge-' + (ok ? 'good' : 'weak')}>{ok ? 'No errors' : `${s.count} error${s.count > 1 ? 's' : ''}`}</span>
-                  </div>
-                  {!ok && (
-                    <div className="rc-status-detail">
-                      {s.items.map((item, i) => (
-                        <div className="rc-status-item" key={i}>
-                          <span className="rc-item-wrong">"{item.word}"</span>
-                          {item.suggestion ? <> should be <span className="rc-item-right">"{item.suggestion}"</span></> : ' - check spelling'}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )
-            })()}
-
-            {/* 2. GRAMMAR */}
-            {(() => {
-              const g = details.mechanics.grammarIssues
-              const ok = g.length === 0
-              return (
-                <div className={'rc-status-row rc-status-' + (ok ? 'good' : g.length > 3 ? 'weak' : 'ok')}>
-                  <div className="rc-status-top">
-                    <span className="rc-status-label">Grammar</span>
-                    <span className={'rc-status-badge rc-badge-' + (ok ? 'good' : g.length > 3 ? 'weak' : 'ok')}>{ok ? 'No issues' : `${g.length} issue${g.length > 1 ? 's' : ''}`}</span>
-                  </div>
-                  {!ok && (
-                    <div className="rc-status-detail">
-                      {g.slice(0, 5).map((item, i) => (
-                        <div className="rc-status-item" key={i}>
-                          <span className="rc-item-type">{item.type}:</span> "{item.text}"
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )
-            })()}
-
-            {/* 3. REPEATED WORDS + I USAGE */}
-            {(() => {
-              const r = details.repetition
-              const hasOveruse = r.overused.length > 0
-              const highI = r.iPer100 > 5
-              const ok = !hasOveruse && !highI
-              return (
-                <div className={'rc-status-row rc-status-' + (ok ? 'good' : 'ok')}>
-                  <div className="rc-status-top">
-                    <span className="rc-status-label">Word repetition and "I" usage</span>
-                    <span className={'rc-status-badge rc-badge-' + (ok ? 'good' : 'ok')}>{ok ? 'Good variety' : 'Some repetition'}</span>
-                  </div>
-                  {!ok && (
-                    <div className="rc-status-detail">
-                      {hasOveruse && (
-                        <div className="rc-status-item">
-                          Repeated words: {r.overused.map(w => `"${w.word}" (${w.count}x)`).join(', ')}
-                        </div>
-                      )}
-                      <div className="rc-status-item">
-                        "I" appears {r.iCount}x, "my" {r.myCount}x, "me" {r.meCount}x ({r.firstPersonTotal} total in {r.totalWords} words)
-                      </div>
-                      {highI && <div className="rc-status-fix">Try starting more sentences with actions instead of "I"</div>}
-                    </div>
-                  )}
-                </div>
-              )
-            })()}
-
-            {/* 4. SIMILARITY TO PAST ESSAYS */}
-            {(() => {
-              const sim = details.similarity
-              if (!sim.checked) return null
-              const topMatch = sim.matches.length > 0 ? sim.matches[0] : null
-              const ok = !topMatch || topMatch.similarity < 30
-              const concern = topMatch && topMatch.similarity >= 50
-              return (
-                <div className={'rc-status-row rc-status-' + (ok ? 'good' : concern ? 'weak' : 'ok')}>
-                  <div className="rc-status-top">
-                    <span className="rc-status-label">Compared to {sim.totalCompared.toLocaleString()} past essays</span>
-                    <span className={'rc-status-badge rc-badge-' + (ok ? 'good' : concern ? 'weak' : 'ok')}>{ok ? 'Original' : concern ? `${topMatch.similarity}% similar` : 'Some overlap'}</span>
-                  </div>
-                  {!ok && topMatch && (
-                    <div className="rc-status-detail">
-                      <div className="rc-status-why">{topMatch.similarity}% similar to a previously submitted {topMatch.type || 'essay'}{topMatch.college ? ` for ${topMatch.college}` : ''}</div>
-                      <div className="rc-status-fix">Make your essay more unique. Use your own specific experiences.</div>
-                    </div>
-                  )}
-                </div>
-              )
-            })()}
-
-            {/* 5. AI DETECTION */}
-            {(() => {
-              const a = details.ai
-              const ok = a.score < 35
-              const concern = a.score >= 60
-              return (
-                <div className={'rc-status-row rc-status-' + (ok ? 'good' : concern ? 'weak' : 'ok')}>
-                  <div className="rc-status-top">
-                    <span className="rc-status-label">AI detection</span>
-                    <span className={'rc-status-badge rc-badge-' + (ok ? 'good' : concern ? 'weak' : 'ok')}>{ok ? 'Looks human' : concern ? 'AI patterns found' : 'Uncertain'}</span>
-                  </div>
-                  {!ok && (
-                    <div className="rc-status-detail">
-                      <div className="rc-status-why">Your essay shows patterns that could indicate AI-assisted writing (this is a signal, not a verdict).</div>
-                      <div className="rc-status-fix">Add more personal, messy, real details. AI tends to write too smoothly.</div>
-                    </div>
-                  )}
-                </div>
-              )
-            })()}
-
-            {/* 6. OVERBOASTING */}
-            {(() => {
-              const b = details.overboasting
-              const ok = b.count === 0
-              return (
-                <div className={'rc-status-row rc-status-' + (ok ? 'good' : 'ok')}>
-                  <div className="rc-status-top">
-                    <span className="rc-status-label">Overboasting</span>
-                    <span className={'rc-status-badge rc-badge-' + (ok ? 'good' : 'ok')}>{ok ? 'Balanced tone' : `${b.count} instance${b.count > 1 ? 's' : ''}`}</span>
-                  </div>
-                  {!ok && (
-                    <div className="rc-status-detail">
-                      {b.items.slice(0, 3).map((item, i) => (
-                        <div className="rc-status-item" key={i}>"{item}"</div>
-                      ))}
-                      <div className="rc-status-fix">Show achievements through actions, not claims. Let the reader draw their own conclusions.</div>
-                    </div>
-                  )}
-                </div>
-              )
-            })()}
-
-            {/* 7. ESSAY LENGTH */}
-            {(() => {
-              const wc = meta.wordCount
-              const limitNum = parseInt(meta.question, 10) // not always available
-              const ok = true // length info is neutral
-              return (
-                <div className="rc-status-row rc-status-good">
-                  <div className="rc-status-top">
-                    <span className="rc-status-label">Essay length</span>
-                    <span className="rc-status-badge rc-badge-good">{wc} words</span>
-                  </div>
-                </div>
-              )
-            })()}
-
-          </div>
+        <div className="rc-legend">
+          <span><span className="rc-leg-dot" style={{ background: '#4a90d9' }} /> Low</span>
+          <span><span className="rc-leg-dot" style={{ background: '#f5a623' }} /> Medium</span>
+          <span><span className="rc-leg-dot" style={{ background: '#4caf50' }} /> High</span>
+          <span><span className="rc-leg-dot" style={{ background: '#1a1a1a' }} /> Your score</span>
         </div>
 
-        {/* OVERALL SCORE */}
-        <div className="rc-section rc-overall-box">
-          <div className="rc-overall-score">{overall}<span className="rc-overall-of">/100</span></div>
-          <div className="rc-overall-verdict">{strong ? 'Ready for expert review' : passed ? 'Strong essay with room to deepen' : 'Needs more personal depth'}</div>
+        <div className="rc-section">
+          <div className="rc-stitle">Your story</div>
+          {storyChecks.map(c => <TriColorBar key={c.key} label={c.label} score={c.score} weight={c.weight} interpretation={getInterpretation(c.key, c.score)} />)}
+        </div>
+
+        <div className="rc-section">
+          <div className="rc-stitle">Your thinking</div>
+          {contentChecks.map(c => <TriColorBar key={c.key} label={c.label} score={c.score} weight={c.weight} interpretation={getInterpretation(c.key, c.score)} />)}
+        </div>
+
+        <div className="rc-section">
+          <div className="rc-stitle">Writing</div>
+          {mechChecks.map(c => <TriColorBar key={c.key} label={c.label} score={c.score} weight={c.weight} interpretation={getInterpretation(c.key, c.score)} />)}
+        </div>
+
+        <div className="rc-section rc-overall-section">
+          <TriColorBar label="Overall score" score={overall} thick />
           {percentile && (
             <div className="rc-percentile">Top {100 - percentile}% compared to {details.similarity.totalCompared ? details.similarity.totalCompared.toLocaleString() : '6,804'} past essays</div>
           )}
+        </div>
+
+        {/* SPELLING */}
+        <div className="rc-section">
+          <div className="rc-stitle">Spelling</div>
+          {details.spelling.count === 0
+            ? <div className="rc-strength"><span className="rc-strength-icon">{'\u2713'}</span> No spelling errors found</div>
+            : details.spelling.items.map((item, i) => (
+              <div className="rc-flag" key={i}>
+                <span className="rc-flag-icon">!</span>
+                <span style={{ color: '#c0392b', fontWeight: 700 }}>"{item.word}"</span>
+                {item.suggestion ? <> should be <span style={{ color: '#1a6e3a', fontWeight: 700 }}>"{item.suggestion}"</span></> : ' - check spelling'}
+              </div>
+            ))
+          }
         </div>
 
         {/* READABILITY */}
@@ -1358,16 +1227,12 @@ function ReportCard({ result, meta, onBack }) {
               {details.mechanics.goodCount} good, {details.mechanics.longCount} too long{details.mechanics.shortCount > 3 ? `, ${details.mechanics.shortCount} very short` : ''}
             </span>
           </div>
-          {details.mechanics.longCount > 0 && (
-            <div className="rc-read-tip">Try breaking long sentences into smaller ones for better readability.</div>
-          )}
         </div>
 
         {/* FIX THESE SENTENCES */}
         {details.mechanics.problematic.length > 0 && (
           <div className="rc-section">
             <div className="rc-stitle">Fix these sentences</div>
-            <div className="rc-read-tip" style={{ marginBottom: 8 }}>These are the hardest to read in your essay:</div>
             {details.mechanics.problematic.map((s, i) => (
               <div className="rc-sentence-fix" key={i}>
                 <div className="rc-sentence-text">"{s.text.length > 150 ? s.text.slice(0, 147) + '...' : s.text}"</div>
