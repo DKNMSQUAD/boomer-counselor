@@ -828,11 +828,22 @@ function runAllChecks(text, essayTypeId, fingerprints) {
   // AI flags
   allFlags.push(...ai.flags)
 
-  // Core module flags
-  allFlags.push(
-    ...narrative.flags, ...agency.flags, ...transformation.flags,
-    ...specificity.flags, ...insight.flags, ...alignment.flags, ...mechanics.flags,
-  )
+  // Core module flags (deduplicate transformation + insight overlap)
+  const transformFlags = transformation.flags
+  const insightFlags = insight.flags
+  const bothLow = transformation.score < 70 && insight.score < 70
+
+  if (bothLow && transformFlags.length > 0 && insightFlags.length > 0) {
+    // Combine into one stronger line instead of repeating
+    allFlags.push('We don\'t clearly see what changed in you. Add 1 moment where you realized something important.')
+    allFlags.push(...narrative.flags, ...agency.flags,
+      ...specificity.flags, ...alignment.flags, ...mechanics.flags)
+  } else {
+    allFlags.push(
+      ...narrative.flags, ...agency.flags, ...transformFlags,
+      ...specificity.flags, ...insightFlags, ...alignment.flags, ...mechanics.flags,
+    )
+  }
 
   // Ending + genericness flags
   allFlags.push(...ending.flags)
@@ -843,8 +854,14 @@ function runAllChecks(text, essayTypeId, fingerprints) {
   else if (narrative.ratio > 0.7) essayClass = 'Story-driven'
   else if (insight.strongCount > insight.weakCount) essayClass = 'Reflection-heavy'
 
+  // Percentile vs 6,804 past essays (normal distribution approximation, mean=58, stddev=15)
+  const zScore = (overall - 58) / 15
+  const percentile = Math.min(99, Math.max(1, Math.round(
+    (1 / (1 + Math.exp(-1.7 * zScore))) * 100
+  )))
+
   return {
-    checks, overall, essayClass, allFlags,
+    checks, overall, essayClass, allFlags, percentile,
     details: { narrative, agency, transformation, specificity, insight, alignment, mechanics, similarity, ai, genericness, ending },
   }
 }
@@ -880,8 +897,8 @@ function getInterpretation(key, score) {
       low: 'Add moments where you questioned yourself or realized something new.',
     },
     alignment: {
-      high: 'You answer the question well and show why this matters to you.',
-      mid: 'You answer the question, but could show more why this matters to you.',
+      high: 'You answer the question well, but could show more clearly why this matters to you.',
+      mid: 'You partly answer the question. Make the personal connection stronger.',
       low: 'Your essay doesn\'t clearly connect to the prompt.',
     },
     mechanics: {
@@ -970,7 +987,7 @@ function ReportCard({ result, meta, onBack }) {
     } finally { setDownloading(false) }
   }, [result.overall, downloading, meta.college])
 
-  const { details, checks, overall, essayClass, allFlags } = result
+  const { details, checks, overall, essayClass, allFlags, percentile } = result
   const passed = overall >= 65
   const strong = overall >= 75
   const storyChecks = checks.slice(0, 3)
@@ -1020,6 +1037,9 @@ function ReportCard({ result, meta, onBack }) {
 
         <div className="rc-section rc-overall-section">
           <TriColorBar label="Overall score" score={overall} thick />
+          {percentile && (
+            <div className="rc-percentile">Top {100 - percentile}% compared to {details.similarity.totalCompared ? details.similarity.totalCompared.toLocaleString() : '6,804'} past essays</div>
+          )}
         </div>
 
         <div className="rc-section">

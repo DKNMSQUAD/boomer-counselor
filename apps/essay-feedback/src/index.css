@@ -335,6 +335,16 @@ button { cursor: pointer; font-family: inherit; }
   padding-top: 14px;
   border-top: 2px solid #1a1a1a;
 }
+.rc-percentile {
+  text-align: center;
+  font-size: 12px;
+  font-weight: 700;
+  color: #1a6e3a;
+  margin-top: 6px;
+  padding: 6px 12px;
+  background: #e8f5e9;
+  border-radius: 3px;
+}
 .rc-row-thick .rc-bar-wrap { height: 26px; }
 
 /* Histogram */
