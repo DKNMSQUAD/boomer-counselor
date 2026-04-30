@@ -776,13 +776,13 @@ function runAllChecks(text, essayTypeId, fingerprints) {
   const ending = detectPredictableEnding(text)
 
   const checks = [
-    { key: 'narrative', label: 'Narrative presence', score: narrative.score, weight: 15 },
-    { key: 'agency', label: 'Personal agency', score: agency.score, weight: 15 },
-    { key: 'transformation', label: 'Transformation arc', score: transformation.score, weight: 20 },
-    { key: 'specificity', label: 'Specificity', score: specificity.score, weight: 15 },
-    { key: 'insight', label: 'Insight quality', score: insight.score, weight: 20 },
-    { key: 'alignment', label: 'Prompt alignment', score: alignment.score, weight: 10 },
-    { key: 'mechanics', label: 'Writing mechanics', score: mechanics.score, weight: 5 },
+    { key: 'narrative', label: 'How well you tell your story', score: narrative.score, weight: 15 },
+    { key: 'agency', label: 'How much YOU are doing things', score: agency.score, weight: 15 },
+    { key: 'transformation', label: 'Do we see you grow or change?', score: transformation.score, weight: 20 },
+    { key: 'specificity', label: 'How real and detailed it feels', score: specificity.score, weight: 15 },
+    { key: 'insight', label: 'How deeply you reflect', score: insight.score, weight: 20 },
+    { key: 'alignment', label: 'Did you answer the question?', score: alignment.score, weight: 10 },
+    { key: 'mechanics', label: 'Grammar and sentence flow', score: mechanics.score, weight: 5 },
   ]
 
   const overall_raw = Math.round(checks.reduce((s, c) => s + c.score * c.weight, 0) / 100)
@@ -852,21 +852,66 @@ function runAllChecks(text, essayTypeId, fingerprints) {
 /* ================================================================
    COMPONENTS
    ================================================================ */
-function TriColorBar({ score, label, weight, thick }) {
+function getInterpretation(key, score) {
+  const interps = {
+    narrative: {
+      high: 'Your essay reads like a real story, not an explanation.',
+      mid: 'Good storytelling, but some parts feel more like explaining than showing.',
+      low: 'Your essay explains more than it shows. Add real scenes from your life.',
+    },
+    agency: {
+      high: 'You clearly show yourself taking action and making decisions.',
+      mid: 'Your actions are present but could stand out more.',
+      low: 'We see things happening TO you, not YOU making things happen.',
+    },
+    transformation: {
+      high: 'We clearly see how you changed and grew.',
+      mid: 'We see your journey, but not clearly what changed inside you.',
+      low: 'We don\'t clearly see what changed in you.',
+    },
+    specificity: {
+      high: 'Your essay is full of real details, names, and moments.',
+      mid: 'Some parts are vivid, others feel vague.',
+      low: 'Too abstract. Add real names, places, and moments.',
+    },
+    insight: {
+      high: 'You show genuine self-awareness and deep thinking.',
+      mid: 'You describe experiences well, but don\'t fully explain what you learned.',
+      low: 'Add moments where you questioned yourself or realized something new.',
+    },
+    alignment: {
+      high: 'You answer the question well and show why this matters to you.',
+      mid: 'You answer the question, but could show more why this matters to you.',
+      low: 'Your essay doesn\'t clearly connect to the prompt.',
+    },
+    mechanics: {
+      high: 'Clean writing with good sentence variety.',
+      mid: 'Mostly clean, with a few rough spots.',
+      low: 'Some sentences need tightening.',
+    },
+  }
+  const tier = score >= 75 ? 'high' : score >= 50 ? 'mid' : 'low'
+  return interps[key] ? interps[key][tier] : ''
+}
+
+function TriColorBar({ score, label, weight, thick, interpretation }) {
   const pct = Math.max(0, Math.min(100, score))
   return (
-    <div className={'rc-row' + (thick ? ' rc-row-thick' : '')}>
-      <div className={'rc-lbl' + (thick ? ' rc-lbl-bold' : '')}>
-        {label}
-        {weight && !thick && <span className="rc-weight">({weight}%)</span>}
+    <div className={'rc-row-block' + (thick ? ' rc-row-thick-block' : '')}>
+      <div className={'rc-row' + (thick ? ' rc-row-thick' : '')}>
+        <div className={'rc-lbl' + (thick ? ' rc-lbl-bold' : '')}>
+          {label}
+          {weight && !thick && <span className="rc-weight">({weight}%)</span>}
+        </div>
+        <div className={'rc-bar-wrap' + (thick ? ' rc-bar-thick' : '')}>
+          <div className="rc-zone rc-z-low" style={{ width: '33.33%' }} />
+          <div className="rc-zone rc-z-med" style={{ width: '33.34%' }} />
+          <div className="rc-zone rc-z-high" style={{ width: '33.33%' }} />
+          <div className="rc-marker" style={{ left: `${pct}%` }} />
+        </div>
+        <div className={'rc-pct' + (thick ? ' rc-pct-bold' : '')}>{pct}%</div>
       </div>
-      <div className={'rc-bar-wrap' + (thick ? ' rc-bar-thick' : '')}>
-        <div className="rc-zone rc-z-low" style={{ width: '33.33%' }} />
-        <div className="rc-zone rc-z-med" style={{ width: '33.34%' }} />
-        <div className="rc-zone rc-z-high" style={{ width: '33.33%' }} />
-        <div className="rc-marker" style={{ left: `${pct}%` }} />
-      </div>
-      <div className={'rc-pct' + (thick ? ' rc-pct-bold' : '')}>{pct}%</div>
+      {interpretation && <div className="rc-interp">{interpretation}</div>}
     </div>
   )
 }
@@ -937,7 +982,7 @@ function ReportCard({ result, meta, onBack }) {
       <div className="rc-hdr">
         <div className="rc-hdr-l">
           <h2 className="rc-hdr-title">Essay feedback report</h2>
-          <div className="rc-hdr-sub">Boomer Counselor / v2 Story Intelligence</div>
+          <div className="rc-hdr-sub">Boomer Counselor / Essay analysis</div>
         </div>
         <div className="rc-hdr-r">
           {meta.college && <div className="rc-hdr-nm">{meta.college}</div>}
@@ -959,18 +1004,18 @@ function ReportCard({ result, meta, onBack }) {
         </div>
 
         <div className="rc-section">
-          <div className="rc-stitle">Story intelligence</div>
-          {storyChecks.map(c => <TriColorBar key={c.key} label={c.label} score={c.score} weight={c.weight} />)}
+          <div className="rc-stitle">Your story</div>
+          {storyChecks.map(c => <TriColorBar key={c.key} label={c.label} score={c.score} weight={c.weight} interpretation={getInterpretation(c.key, c.score)} />)}
         </div>
 
         <div className="rc-section">
-          <div className="rc-stitle">Content depth</div>
-          {contentChecks.map(c => <TriColorBar key={c.key} label={c.label} score={c.score} weight={c.weight} />)}
+          <div className="rc-stitle">Your thinking</div>
+          {contentChecks.map(c => <TriColorBar key={c.key} label={c.label} score={c.score} weight={c.weight} interpretation={getInterpretation(c.key, c.score)} />)}
         </div>
 
         <div className="rc-section">
-          <div className="rc-stitle">Writing mechanics</div>
-          {mechChecks.map(c => <TriColorBar key={c.key} label={c.label} score={c.score} weight={c.weight} />)}
+          <div className="rc-stitle">Writing</div>
+          {mechChecks.map(c => <TriColorBar key={c.key} label={c.label} score={c.score} weight={c.weight} interpretation={getInterpretation(c.key, c.score)} />)}
         </div>
 
         <div className="rc-section rc-overall-section">
@@ -978,20 +1023,22 @@ function ReportCard({ result, meta, onBack }) {
         </div>
 
         <div className="rc-section">
-          <div className="rc-stitle">Sentence length distribution</div>
+          <div className="rc-stitle">Are your sentences easy to read?</div>
           <Histogram student={details.mechanics.histogram} baseline={{ '1-5': 0.1142, '6-10': 0.1734, '11-15': 0.2071, '16-20': 0.1889, '21-25': 0.1340, '26-30': 0.0813, '31+': 0.1012 }} />
+          {details.mechanics.mean > 20 && <div className="rc-interp" style={{ marginTop: 6 }}>Your sentences are a bit long on average. Try breaking some up.</div>}
+          {details.mechanics.longSentences > 0 && <div className="rc-interp" style={{ marginTop: 4 }}>{details.mechanics.longSentences} sentence(s) are too long and hard to read.</div>}
         </div>
 
         {/* WHAT WORKS WELL */}
         {(() => {
           const strengths = []
-          if (details.narrative.score >= 70) strengths.push('Strong narrative voice with lived experience')
-          if (details.agency.score >= 70) strengths.push('Clear personal agency throughout')
-          if (details.specificity.score >= 70) strengths.push('Rich in specific details and concrete moments')
-          if (details.transformation.score >= 70) strengths.push('Clear transformation arc showing growth')
-          if (details.insight.score >= 70) strengths.push('Meaningful self-reflection')
-          if (details.alignment.score >= 70) strengths.push('Strong alignment with the essay prompt')
-          if (details.mechanics.score >= 70) strengths.push('Clean, well-structured writing')
+          if (details.narrative.score >= 70) strengths.push('Your essay reads like a real story, not a school assignment')
+          if (details.agency.score >= 70) strengths.push('You clearly show yourself taking action')
+          if (details.specificity.score >= 70) strengths.push('Full of real details that make it memorable')
+          if (details.transformation.score >= 70) strengths.push('We can see how you grew and changed')
+          if (details.insight.score >= 70) strengths.push('You show genuine self-awareness')
+          if (details.alignment.score >= 70) strengths.push('You answer the prompt well')
+          if (details.mechanics.score >= 70) strengths.push('Clean, well-written prose')
           return strengths.length > 0 ? (
             <div className="rc-section">
               <div className="rc-stitle">What works well</div>
@@ -1008,17 +1055,17 @@ function ReportCard({ result, meta, onBack }) {
           const weakest = sortedChecks[0]
           if (!weakest || weakest.score >= 75) return null
           const priorityMessages = {
-            narrative: 'Add more personal stories and specific scenes from your life.',
-            agency: 'Make your actions and decisions more prominent. Lead with what YOU did.',
-            transformation: 'Show a clear internal shift. Add a moment where your thinking changed.',
-            specificity: 'Replace abstract statements with named people, places, and events.',
-            insight: 'Add a moment of genuine self-questioning or changed belief.',
-            alignment: 'Connect your topic more explicitly to your identity and personal significance.',
-            mechanics: 'Review sentence structure and vary your sentence lengths.',
+            narrative: 'Add more real scenes from your life instead of explaining ideas.',
+            agency: 'Show more moments where YOU made a decision or took action.',
+            transformation: 'Add 1 moment where you realized something important or changed your mind.',
+            specificity: 'Replace vague statements with real names, places, and details.',
+            insight: 'Add 1 moment where you questioned yourself or saw things differently.',
+            alignment: 'Make it clearer why this topic matters to YOU personally.',
+            mechanics: 'Break up long sentences and vary your sentence length.',
           }
           return (
             <div className="rc-section">
-              <div className="rc-stitle">Top priority fix</div>
+              <div className="rc-stitle">What to fix first</div>
               <div className="rc-priority">
                 <span className="rc-priority-label">{weakest.label} ({weakest.score}%)</span>
                 <span className="rc-priority-msg">{priorityMessages[weakest.key] || 'Strengthen this area for the biggest score improvement.'}</span>

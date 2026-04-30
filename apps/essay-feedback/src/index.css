@@ -316,6 +316,20 @@ button { cursor: pointer; font-family: inherit; }
   font-weight: 400;
   margin-left: 4px;
 }
+.rc-row-block { margin-bottom: 10px; }
+.rc-row-block:last-child { margin-bottom: 0; }
+.rc-row-thick-block { margin-bottom: 0; }
+.rc-interp {
+  font-size: 10px;
+  color: #8a7f72;
+  line-height: 1.4;
+  padding-left: 150px;
+  margin-top: -2px;
+  font-style: italic;
+}
+@media (max-width: 720px) {
+  .rc-interp { padding-left: 110px; }
+}
 .rc-overall-section {
   margin-top: 18px;
   padding-top: 14px;
