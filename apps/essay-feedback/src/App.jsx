@@ -784,6 +784,163 @@ function checkNegativeSelfTalk(text) {
 }
 
 /* ================================================================
+   SUBSTANCE ENGINE
+   Detects "looks polished but actually empty" essays:
+   1. Cliche density: hollow boilerplate phrases
+   2. Self-praise without evidence: claims of virtue without examples
+   3. Specificity score: proper nouns, numbers, sensory details
+   The goal is to catch essays that pass mechanical checks but say
+   nothing real about the writer.
+   ================================================================ */
+const SUBSTANCE_CLICHES = [
+  // Generic life-lesson phrases
+  'this taught me', 'i learned the importance', 'this experience changed me',
+  'it made me who i am', 'i grew as a person', 'this helped me grow',
+  'i became a better person', 'it opened my eyes', 'this shaped my perspective',
+  'this made me realize', 'changed my life', 'changed me forever',
+  // Hard work / success cliches
+  'hard work pays off', 'hard work paid off', 'hard work leads to',
+  'hard work and dedication', 'put in the work', 'put in effort',
+  'stepping stone', 'stepping stones', 'paved the way',
+  'best version of myself', 'best version of me', 'better version of myself',
+  'achieve my goals', 'achieve my dreams', 'achieve great things',
+  'reach my full potential', 'live up to my potential',
+  // Resilience cliches
+  'never give up', 'never gave up', 'never giving up',
+  'no matter what', 'no matter the challenges', 'whatever challenges',
+  'overcome challenges', 'overcame challenges', 'overcame obstacles',
+  'overcome obstacles', 'face any challenge', 'rise to the occasion',
+  'rose to the occasion', 'pushed myself', 'push myself',
+  'failure is just', 'failure is not', 'failure is a',
+  'stay positive', 'staying positive', 'kept moving forward',
+  'keep moving forward', 'moving forward', 'kept going',
+  'worked even harder', 'work even harder', 'worked harder',
+  // Self-praise cliches (claims without evidence)
+  'i am hardworking', 'i am determined', 'i am motivated',
+  'i am passionate', 'i am dedicated', 'i am committed',
+  'i strongly believe', 'i firmly believe', 'i truly believe',
+  'capable of achieving', 'capable of great things', 'great things',
+  'positive impact', 'make a difference', 'change the world',
+  'leave my mark', 'leave a mark', 'inspire others',
+  'be the change', 'be a leader', 'future leader',
+  'team player', 'strong work ethic', 'go-getter',
+  'hardworking and dedicated', 'dedicated and committed',
+  'driven and motivated', 'determined and motivated',
+  'ready to take on', 'take on new challenges', 'prove myself',
+  'in any situation', 'whatever comes my way',
+  // Academic boilerplate
+  'throughout my academic', 'academic career', 'academic journey',
+  'one of the top students', 'top of my class', 'top students',
+  'consistently achieved', 'consistently performed',
+  'good results', 'great results', 'excellent results',
+  'teachers appreciated', 'teachers often', 'teachers always',
+  'dedication and commitment', 'commitment to my studies',
+  // Activity boilerplate
+  'apart from academics', 'extracurricular activities',
+  'helped me develop', 'developed important', 'important life skills',
+  'teamwork, leadership', 'leadership and communication',
+  'leadership skills', 'communication skills', 'time management',
+  'shaped my personality', 'shaped me into', 'shaped who i am',
+  'more confident individual', 'more confident person',
+  'rounded individual', 'well-rounded',
+  // Conclusion cliches
+  'in conclusion', 'to conclude', 'to summarize',
+  'in summary', 'all in all', 'at the end of the day',
+  'my journey reflects', 'reflects my belief', 'reflects who i am',
+  'these qualities will', 'these experiences have',
+  'i am confident that', 'i have no doubt',
+  'a positive impact in the world', 'positive impact on the world',
+  'make the world a better place', 'better place',
+  // Opening cliches
+  'from a young age', 'ever since i was', 'since i was a child',
+  'as long as i can remember', 'for as long as',
+  'success has always', 'has always been important',
+  'has always been my', 'has always been a',
+  // Filler phrases
+  'guided me through', 'guided me throughout',
+  'helped me overcome', 'helped me understand',
+  'taught me valuable', 'valuable lessons',
+  'invaluable experience', 'incredible journey', 'amazing experience',
+  'life-changing', 'eye-opening', 'transformative experience',
+]
+
+// Self-praise patterns: claims of virtue without example
+const SELF_PRAISE_PATTERNS = [
+  /i(?:'m| am)\s+(?:a\s+|an\s+)?(?:hard[-\s]?working|determined|motivated|dedicated|passionate|committed|focused|driven|ambitious|talented|gifted|capable|confident|resilient|persistent|reliable|responsible|disciplined|creative|innovative|exceptional|extraordinary|outstanding|excellent|brilliant|smart|intelligent)/gi,
+  /i(?:'m| am)\s+(?:a\s+)?(?:hard[-\s]?working|determined|motivated|dedicated|passionate|committed|driven|ambitious|talented|gifted|capable|confident|resilient|persistent|reliable|disciplined|creative|innovative)\s*[,]\s*(?:hard[-\s]?working|determined|motivated|dedicated|passionate|committed|driven|ambitious|talented|gifted|capable|confident|resilient|persistent|reliable|disciplined|creative|innovative|and)/gi,
+  /i\s+have\s+always\s+(?:worked\s+hard|believed|known|been|stayed|tried|wanted|loved|enjoyed|dreamed)/gi,
+  /i\s+strongly\s+believe/gi,
+  /i\s+firmly\s+believe/gi,
+  /i\s+truly\s+believe/gi,
+  /i\s+(?:am|'m)\s+capable\s+of/gi,
+  /i\s+(?:am|'m)\s+ready\s+to\s+take\s+on/gi,
+]
+
+function checkSubstance(text, wordCount) {
+  const lower = text.toLowerCase()
+
+  // Layer 1: Cliche detection
+  const clicheHits = []
+  const seenCliches = new Set()
+  for (const c of SUBSTANCE_CLICHES) {
+    if (lower.includes(c) && !seenCliches.has(c)) {
+      clicheHits.push(c)
+      seenCliches.add(c)
+    }
+  }
+  const cliPer100 = wordCount > 0 ? (clicheHits.length / wordCount) * 100 : 0
+
+  // Layer 2: Self-praise without evidence
+  const selfPraiseHits = []
+  for (const re of SELF_PRAISE_PATTERNS) {
+    for (const m of text.matchAll(new RegExp(re.source, re.flags))) {
+      selfPraiseHits.push(m[0])
+    }
+  }
+
+  // Layer 3: Specificity score
+  const sentences = text.split(/[.!?]+/).filter(s => s.trim())
+  let properNouns = 0
+  const properNounWords = []
+  const COMMON_FILTER = new Set(['I','January','February','March','April','May','June','July','August','September','October','November','December','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday','English','Math','Science','History'])
+  for (const s of sentences) {
+    const words = s.trim().split(/\s+/)
+    for (let i = 1; i < words.length; i++) {
+      const cleaned = words[i].replace(/[^A-Za-z]/g, '')
+      if (cleaned.length > 2 && /^[A-Z][a-z]+/.test(cleaned) && !COMMON_FILTER.has(cleaned)) {
+        properNouns++
+        if (properNounWords.length < 8) properNounWords.push(cleaned)
+      }
+    }
+  }
+  // Count numbers (ages, years, quantities, scores)
+  const numbers = (text.match(/\d+/g) || []).length
+  // Sensory verbs and concrete-event words (narrative voice indicators)
+  const SENSORY_VERBS = new Set(['smelled','tasted','heard','sounded','touched','saw','watched','noticed','glanced','whispered','shouted','laughed','cried','ran','walked','knelt','grabbed','held','stared','flinched','gripped','clutched','sprinted','stumbled','dropped','slammed','knocked'])
+  let sensoryHits = 0
+  const allWords = lower.match(/[a-z']+/g) || []
+  for (const w of allWords) {
+    if (SENSORY_VERBS.has(w)) sensoryHits++
+  }
+  const specificityScore = properNouns + numbers + sensoryHits
+  const specPer100 = wordCount > 0 ? (specificityScore / wordCount) * 100 : 0
+
+  return {
+    clicheCount: clicheHits.length,
+    clicheHits,
+    cliPer100: Math.round(cliPer100 * 10) / 10,
+    selfPraiseCount: selfPraiseHits.length,
+    selfPraiseHits,
+    properNouns,
+    properNounSamples: properNounWords,
+    numbers,
+    sensoryHits,
+    specificityScore,
+    specPer100: Math.round(specPer100 * 10) / 10,
+  }
+}
+
+/* ================================================================
    MODULE 8: AI DETECTION (Heuristic - risk signal, not verdict)
    ================================================================ */
 const AI_FORMAL_PHRASES = new Set([
@@ -942,6 +1099,8 @@ function runAllChecks(text, essayTypeId, fingerprints, tgSpelling = [], tgGramma
   const repetition = checkRepetition(text)
   const overboasting = checkOverboasting(text)
   const negativeTalk = checkNegativeSelfTalk(text)
+  const wordCount = (text.match(/\b[a-zA-Z']+\b/g) || []).length
+  const substance = checkSubstance(text, wordCount)
 
   // Sentence stats
   const sentences = splitSentences(text)
@@ -1003,6 +1162,35 @@ function runAllChecks(text, essayTypeId, fingerprints, tgSpelling = [], tgGramma
   if (negativeTalk.count > 0 && overboasting.count > 0) score -= 3
 
   /* ============================================================
+     SUBSTANCE PENALTIES
+     Penalize empty essays: clich\u00e9 saturation, self-praise
+     without evidence, lack of specific details.
+     ============================================================ */
+  // 10. CLICHE DENSITY (per 100 words)
+  let clichePenalty = 0
+  if (substance.cliPer100 >= 4) clichePenalty = 25
+  else if (substance.cliPer100 >= 2.5) clichePenalty = 15
+  else if (substance.cliPer100 >= 1.5) clichePenalty = 8
+  else if (substance.cliPer100 >= 0.8) clichePenalty = 4
+  score -= clichePenalty
+
+  // 11. SELF-PRAISE WITHOUT EVIDENCE
+  let selfPraisePenalty = 0
+  if (substance.selfPraiseCount >= 3) selfPraisePenalty = 12
+  else if (substance.selfPraiseCount >= 2) selfPraisePenalty = 7
+  else if (substance.selfPraiseCount >= 1) selfPraisePenalty = 3
+  score -= selfPraisePenalty
+
+  // 12. SPECIFICITY FLOOR
+  // Real essays have proper nouns, numbers, sensory details.
+  // Empty essays have abstract nouns and generic claims only.
+  let specificityPenalty = 0
+  if (substance.specPer100 < 0.5) specificityPenalty = 18
+  else if (substance.specPer100 < 1.0) specificityPenalty = 10
+  else if (substance.specPer100 < 1.5) specificityPenalty = 5
+  score -= specificityPenalty
+
+  /* ============================================================
      SEVERITY ENGINE
      Many small issues = small penalty.
      Many major issues stacked = exponential penalty.
@@ -1016,12 +1204,15 @@ function runAllChecks(text, essayTypeId, fingerprints, tgSpelling = [], tgGramma
     tone_conflict: negativeTalk.count > 0 && overboasting.count > 0,
     i_overuse_extreme: repetition.iPer100 > 7,
     run_on_dominance: mean > 30,
+    substance_void: substance.specPer100 < 0.5 && substance.cliPer100 >= 1.5,
+    cliche_dominance: substance.cliPer100 >= 3,
   }
   const flaggedKeys = Object.keys(flags).filter(k => flags[k])
   const flagCount = flaggedKeys.length
 
   let severityMultiplier = 1.0
-  if (flagCount >= 5) severityMultiplier = 0.40
+  if (flagCount >= 6) severityMultiplier = 0.35
+  else if (flagCount >= 5) severityMultiplier = 0.45
   else if (flagCount >= 4) severityMultiplier = 0.55
   else if (flagCount >= 3) severityMultiplier = 0.70
   else if (flagCount >= 2) severityMultiplier = 0.85
@@ -1066,6 +1257,7 @@ function runAllChecks(text, essayTypeId, fingerprints, tgSpelling = [], tgGramma
         preSeverityScore: Math.max(0, Math.min(100, Math.round(preSeverityScore))),
         toneConflictCap: flags.tone_conflict,
       },
+      substance,
     },
   }
 }
@@ -1143,7 +1335,7 @@ function ReportCard({ result, meta, onBack }) {
             marginBottom: '14px',
           }}>
             <div style={{ fontWeight: 700, marginBottom: '6px', color: '#92400e' }}>
-              Critical issues stacked: {details.severity.flagCount} of 5
+              Critical issues stacked: {details.severity.flagCount} of 7
             </div>
             <div style={{ fontSize: '13px', color: '#78350f', marginBottom: '8px' }}>
               Your base score was {details.severity.preSeverityScore}, but multiple major problems compounded.
@@ -1156,6 +1348,8 @@ function ReportCard({ result, meta, onBack }) {
               {details.severity.flags.includes('tone_conflict') && <li>Tone conflict (self-deprecation and overboasting in the same essay)</li>}
               {details.severity.flags.includes('i_overuse_extreme') && <li>Extreme "I" overuse (more than 7 per 100 words)</li>}
               {details.severity.flags.includes('run_on_dominance') && <li>Run-on dominance (average sentence length over 30 words)</li>}
+              {details.severity.flags.includes('substance_void') && <li>Substance void (essay has clich\u00e9s but almost no specific names, numbers, or sensory details)</li>}
+              {details.severity.flags.includes('cliche_dominance') && <li>Clich\u00e9 dominance (3+ clich\u00e9d phrases per 100 words \u2014 hollow boilerplate)</li>}
             </ul>
           </div>
         )}
@@ -1252,6 +1446,56 @@ function ReportCard({ result, meta, onBack }) {
             </>
           )}
         </CheckSection>
+
+        {/* 9. SUBSTANCE - cliches, self-praise, specificity */}
+        {details.substance && (details.substance.clicheCount > 0 || details.substance.selfPraiseCount > 0 || details.substance.specPer100 < 1.5) && (
+          <div className="rc-check">
+            <div className="rc-check-hdr">
+              <span className="rc-check-title">9. Substance</span>
+            </div>
+            {details.substance.clicheCount > 0 && (
+              <div style={{ marginBottom: '10px' }}>
+                <div className="rc-issue" style={{ marginBottom: '4px' }}>
+                  <strong>Clich\u00e9 phrases detected:</strong> {details.substance.clicheCount} ({details.substance.cliPer100} per 100 words)
+                </div>
+                <div style={{ fontSize: '13px', color: '#7a5c2e', marginLeft: '8px' }}>
+                  {details.substance.clicheHits.slice(0, 8).map((c, i) => (
+                    <span key={i}>\u201c{c}\u201d{i < Math.min(7, details.substance.clicheHits.length - 1) ? ', ' : ''}</span>
+                  ))}
+                  {details.substance.clicheHits.length > 8 && <span>, +{details.substance.clicheHits.length - 8} more</span>}
+                </div>
+                <div style={{ fontSize: '13px', color: '#0a7a2f', marginTop: '6px' }}>
+                  Replace empty phrases with specific moments unique to your story.
+                </div>
+              </div>
+            )}
+            {details.substance.selfPraiseCount > 0 && (
+              <div style={{ marginBottom: '10px' }}>
+                <div className="rc-issue" style={{ marginBottom: '4px' }}>
+                  <strong>Self-praise without evidence:</strong> {details.substance.selfPraiseCount}
+                </div>
+                <div style={{ fontSize: '13px', color: '#7a5c2e', marginLeft: '8px' }}>
+                  {details.substance.selfPraiseHits.slice(0, 4).map((c, i) => (
+                    <span key={i}>\u201c{c}\u201d{i < Math.min(3, details.substance.selfPraiseHits.length - 1) ? '; ' : ''}</span>
+                  ))}
+                </div>
+                <div style={{ fontSize: '13px', color: '#0a7a2f', marginTop: '6px' }}>
+                  Don\u2019t tell us you\u2019re hardworking \u2014 show a moment that proves it.
+                </div>
+              </div>
+            )}
+            {details.substance.specPer100 < 1.5 && (
+              <div>
+                <div className="rc-issue" style={{ marginBottom: '4px' }}>
+                  <strong>Lacking specificity:</strong> {details.substance.properNouns} proper nouns, {details.substance.numbers} numbers, {details.substance.sensoryHits} sensory details ({details.substance.specPer100} per 100 words)
+                </div>
+                <div style={{ fontSize: '13px', color: '#0a7a2f', marginTop: '6px' }}>
+                  Real essays have specific names, places, dates, and sensory moments. Generic essays don\u2019t.
+                </div>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* OVERALL SCORE */}
         <div className="rc-overall-box">
