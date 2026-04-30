@@ -71,6 +71,7 @@ const TRANSITION_MARKERS = [
 ]
 
 const STRONG_AGENCY_PATTERNS = [
+  // Explicit decision verbs
   /\bi chose\b/gi, /\bi decided\b/gi, /\bi built\b/gi, /\bi created\b/gi,
   /\bi confronted\b/gi, /\bi questioned\b/gi, /\bi challenged\b/gi,
   /\bi changed\b/gi, /\bi failed\b/gi, /\bi struggled\b/gi,
@@ -81,13 +82,28 @@ const STRONG_AGENCY_PATTERNS = [
   /\bi stood up\b/gi, /\bi spoke up\b/gi, /\bi stepped\b/gi,
   /\bi discovered\b/gi, /\bi learned\b/gi, /\bi overcame\b/gi,
   /\bi embraced\b/gi, /\bi abandoned\b/gi, /\bi accepted\b/gi,
+  // Implicit agency (commonly missed)
+  /\bi started\b/gi, /\bi began\b/gi, /\bi explored\b/gi,
+  /\bi followed\b/gi, /\bi taught\b/gi, /\bi spent\b/gi,
+  /\bi tried\b/gi, /\bi practiced\b/gi, /\bi studied\b/gi,
+  /\bi worked\b/gi, /\bi joined\b/gi, /\bi volunteered\b/gi,
+  /\bi applied\b/gi, /\bi signed up\b/gi, /\bi enrolled\b/gi,
+  /\bi went\b/gi, /\bi took\b/gi, /\bi made\b/gi,
+  /\bi kept\b/gi, /\bi continued\b/gi, /\bi persisted\b/gi,
+  /\bi researched\b/gi, /\bi read\b/gi, /\bi wrote\b/gi,
+  /\bi trained\b/gi, /\bi competed\b/gi, /\bi performed\b/gi,
+  /\bi managed\b/gi, /\bi ran\b/gi, /\bi launched\b/gi,
+  /\bi had to\b/gi, /\bi needed to\b/gi, /\bi wanted to\b/gi,
+  // Contracted forms
+  /\bi'd spend\b/gi, /\bi'd go\b/gi, /\bi'd sit\b/gi,
+  /\bi'd wake\b/gi, /\bi'd stay\b/gi, /\bi'd practice\b/gi,
+  /\bi would\s+\w+/gi,
 ]
 
 const WEAK_AGENCY_PATTERNS = [
-  /\bi was told\b/gi, /\bi have always\b/gi, /\bi am\b/gi,
-  /\bi think\b/gi, /\bi believe\b/gi, /\bi feel\b/gi,
-  /\bi was given\b/gi, /\bi was taught\b/gi, /\bi was raised\b/gi,
-  /\bi was born\b/gi, /\bi happened to\b/gi, /\bi found myself\b/gi,
+  /\bi was told\b/gi, /\bi was given\b/gi, /\bi was taught\b/gi,
+  /\bi was raised\b/gi, /\bi was born\b/gi, /\bi happened to\b/gi,
+  /\bi found myself\b/gi, /\bi was forced\b/gi,
 ]
 
 const STRONG_INSIGHT = [
@@ -327,16 +343,17 @@ function analyzeAgency(text) {
 
   let score
   if (total === 0) {
-    score = 20
+    score = 40 // baseline, not zero
   } else {
-    const ratio = strongCount / total
-    score = Math.min(100, Math.max(0, Math.round(ratio * 120)))
+    // More generous: even a few action verbs = decent score
+    const ratio = strongCount / Math.max(total, 1)
+    score = Math.min(100, Math.max(20, Math.round(ratio * 110 + strongCount * 3)))
   }
 
   const flags = []
-  if (strongCount === 0) flags.push('No personal action verbs detected. Show what YOU did, not what happened to you.')
-  if (weakCount > strongCount * 2) flags.push('Too many passive self-references. Replace "I was/I am/I think" with "I chose/I built/I confronted".')
-  if (total < 3) flags.push('Essay lacks personal agency. Center yourself as the protagonist who acts.')
+  if (strongCount === 0 && weakCount > 0) flags.push('Consider making your actions more explicit. Show decisions you made, not just things that happened.')
+  else if (strongCount < 3 && strongCount > 0) flags.push('Your actions are present but could be more prominent. Leading with "I chose" or "I decided" strengthens impact.')
+  if (weakCount > strongCount * 3 && weakCount > 4) flags.push('Many passive references detected. Try leading more sentences with active decisions.')
 
   return { score, strongCount, weakCount, flags }
 }
@@ -355,12 +372,21 @@ function analyzeTransformation(text) {
   const hasAfter = afterFound.length > 0
   const hasTransition = transitionFound.length > 0
 
-  let arcStrength = 0 // 0-3
+  // NEW: Check for internal shift / reflection (not just sequence)
+  const reflectionMarkers = [
+    'i realized','i understood','i began to see','i came to understand',
+    'i questioned','it dawned on me','i recognized','i learned that',
+    'i saw things differently','i changed how','my perspective shifted',
+    'i no longer saw','i started to think','it made me reconsider',
+  ]
+  const reflectionFound = containsAny(lower, reflectionMarkers)
+  const hasReflection = reflectionFound.length > 0
+
+  let arcStrength = 0
   if (hasBefore) arcStrength++
   if (hasAfter) arcStrength++
   if (hasTransition) arcStrength++
 
-  // Check for before->after ORDERING (before markers should appear earlier than after markers)
   let hasProperOrder = false
   if (hasBefore && hasAfter) {
     const firstBefore = Math.min(...beforeFound.map(b => lower.indexOf(b)))
@@ -368,20 +394,23 @@ function analyzeTransformation(text) {
     hasProperOrder = firstBefore < lastAfter
   }
 
+  // Scoring: sequence + reflection = high, sequence alone = medium
   let score
-  if (arcStrength === 3 && hasProperOrder) score = 100
-  else if (arcStrength >= 2 && hasProperOrder) score = 80
-  else if (arcStrength >= 2) score = 60
+  if (arcStrength >= 2 && hasReflection && hasProperOrder) score = 95
+  else if (arcStrength >= 2 && hasReflection) score = 80
+  else if (arcStrength >= 2 && hasProperOrder) score = 60 // sequence without reflection = medium
+  else if (arcStrength >= 2) score = 50
+  else if (arcStrength === 1 && hasReflection) score = 55
   else if (arcStrength === 1) score = 30
-  else score = 0
+  else score = 10
 
   const flags = []
-  if (arcStrength === 0) flags.push('No transformation arc detected. Admissions needs to see how you changed.')
-  if (!hasBefore && hasAfter) flags.push('You describe who you are now, but not who you were before. Add the "before" state.')
-  if (hasBefore && !hasAfter) flags.push('You set up a starting point but never show how you changed. Add the "now" state.')
-  if (hasBefore && hasAfter && !hasTransition) flags.push('Arc exists but the turning point is unclear. Add the moment everything shifted.')
+  if (arcStrength === 0) flags.push('No transformation arc detected. Show how you changed over time.')
+  else if (arcStrength >= 2 && !hasReflection) flags.push('Arc exists but the internal shift is unclear. Add a moment of realization or changed belief.')
+  if (!hasBefore && hasAfter) flags.push('You describe who you are now but not who you were before.')
+  if (hasBefore && !hasAfter) flags.push('Good setup, but show how you are different now.')
 
-  return { score, arcStrength, hasBefore, hasAfter, hasTransition, hasProperOrder, beforeFound, afterFound, transitionFound, flags }
+  return { score, arcStrength, hasBefore, hasAfter, hasTransition, hasReflection, hasProperOrder, flags }
 }
 
 /* ================================================================
@@ -438,19 +467,23 @@ function analyzeInsight(text) {
   const total = strongCount + weakCount
   let score
   if (total === 0) {
-    score = 30 // some credit for trying
+    // No explicit insight phrases doesn't mean no insight (show-don't-tell essays)
+    score = 50
   } else {
     const ratio = strongCount / total
-    score = Math.round(ratio * 100)
+    // More generous: even some strong insights = good score
+    score = Math.round(40 + ratio * 60)
   }
-  // Penalize cliches
-  score = Math.max(0, score - clichesFound.length * 8)
+  // Bonus for multiple strong insights
+  if (strongCount >= 3) score = Math.min(100, score + 10)
+  // Softer cliche penalty
+  score = Math.max(20, score - clichesFound.length * 5)
   score = Math.min(100, Math.max(0, score))
 
   const flags = []
-  if (strongCount === 0) flags.push('No deep reflection detected. Add moments where you questioned yourself or changed your mind.')
-  if (weakCount > strongCount) flags.push('Insights are generic ("it taught me", "I learned"). Ground them in specific moments.')
-  if (clichesFound.length > 0) flags.push(`${clichesFound.length} cliche phrase(s): ${clichesFound.slice(0, 3).map(c => `"${c.text}"`).join(', ')}`)
+  if (strongCount === 0 && weakCount > 0) flags.push('Your reflections could go deeper. Try connecting events to specific internal shifts or changed beliefs.')
+  else if (strongCount === 0 && weakCount === 0) flags.push('Adding a moment of realization or self-questioning would strengthen this essay.')
+  if (clichesFound.length > 2) flags.push(`${clichesFound.length} cliche phrase(s) could be replaced with specific observations: ${clichesFound.slice(0, 2).map(c => `"${c.text}"`).join(', ')}`)
 
   return { score, strongCount, weakCount, clichesFound, flags }
 }
@@ -464,20 +497,49 @@ function analyzeAlignment(text, essayTypeId) {
   const checks = []
   let passed = 0
 
-  // Common checks
-  const hasIdentity = /\bi am\b|\bwho i\b|\bpart of me\b|\bmy identity\b|\bwhat makes me\b|\bdefines me\b/i.test(text)
-  const hasPersonalStakes = /\bmatters to me\b|\bcannot imagine\b|\bwithout this\b|\bessential\b|\bcore of\b|\bheart of\b/i.test(text)
-  const hasRealWorld = /\bin my life\b|\bat school\b|\bat home\b|\bin class\b|\bmy family\b|\bmy community\b|\bmy team\b/i.test(text)
-  const hasSubjectPassion = /\bfascinated\b|\bcaptivated\b|\bdrawn to\b|\bcompelled\b|\bcuriosity\b|\bintrigued\b/i.test(text)
+  // IMPROVED: Detect identity through thematic anchors (repeated topic = identity)
+  const words = lower.replace(/[^a-z\s]/g, '').split(/\s+/)
+  const stopWords = new Set(['the','a','an','and','or','but','in','on','at','to','for','of','with','by','from','as','is','was','are','were','be','been','have','has','had','do','does','did','will','would','could','should','my','i','me','it','this','that','not','so','if','than','them','they','he','she','we','you','our','their','its','just','also','very','more','most','some','no','all','each','every','both','few','about','up','out','into','over','after','before','can','which','when','where','what','who','how','only','other','than','then','there','these','those','much','many','such','now','like','even','well','way','because','through'])
+  const freqs = {}
+  for (const w of words) { if (w.length > 3 && !stopWords.has(w)) freqs[w] = (freqs[w] || 0) + 1 }
+  const topWords = Object.entries(freqs).filter(([, c]) => c >= 3).sort((a, b) => b[1] - a[1])
+  const hasThematicAnchor = topWords.length > 0 // repeated topic = identity signal
+
+  // Broader identity detection
+  const hasIdentity = hasThematicAnchor ||
+    /\bi am\b|\bwho i\b|\bpart of me\b|\bmy identity\b|\bwhat makes me\b|\bdefines me\b/i.test(text) ||
+    /\bi love\b|\bi enjoy\b|\bmy passion\b|\bi've always\b|\bi have always\b/i.test(text) ||
+    /\bmy [\w]+ (journey|story|experience|world|life)\b/i.test(text)
+
+  // Broader personal stakes
+  const hasPersonalStakes =
+    /\bmatters to me\b|\bcannot imagine\b|\bwithout this\b|\bessential\b|\bcore of\b|\bheart of\b/i.test(text) ||
+    /\bspent (hours|days|weeks|months|years)\b/i.test(text) ||
+    /\bdedicated\b|\bdevoted\b|\bobsessed\b|\bdriven\b|\bcommitted\b/i.test(text) ||
+    /\bmy life\b.*\b(changed|different|shaped|transformed)\b/i.test(text) ||
+    /\b(deeply|profoundly|fundamentally)\b/i.test(text)
+
+  // Real-world presence (broader)
+  const hasRealWorld =
+    /\bin my life\b|\bat school\b|\bat home\b|\bin class\b|\bmy family\b|\bmy community\b|\bmy team\b/i.test(text) ||
+    /\bmy (friends|classmates|teacher|parents|mother|father|coach)\b/i.test(text) ||
+    /\b(classroom|library|lab|field|stage|kitchen|room|house|building)\b/i.test(text)
+
+  const hasSubjectPassion = /\bfascinated\b|\bcaptivated\b|\bdrawn to\b|\bcompelled\b|\bcuriosity\b|\bintrigued\b|\blove\b|\bpassion\b|\bexcited\b|\bthrilled\b|\bengaged\b/i.test(text)
   const hasSpecificCollege = /\b(program|department|professor|campus|lab|research|course|class at|club at)\b/i.test(text)
-  const hasFutureGoals = /\bi want to\b|\bi plan to\b|\bi hope to\b|\bin the future\b|\bmy goal\b|\bcareer\b/i.test(text)
-  const hasAcademicEngagement = /\bresearch\b|\bstudy\b|\breadings?\b|\bproject\b|\bexperiment\b|\btheory\b/i.test(text)
+  const hasFutureGoals = /\bi want to\b|\bi plan to\b|\bi hope to\b|\bin the future\b|\bmy goal\b|\bcareer\b|\baspire\b|\bdream\b/i.test(text)
+  const hasAcademicEngagement = /\bresearch\b|\bstudy\b|\breadings?\b|\bproject\b|\bexperiment\b|\btheory\b|\bcourse\b|\bprogram\b/i.test(text)
+
+  // Meaning detection (broader)
+  const hasMeaning = hasPersonalStakes || hasIdentity ||
+    /\bthis (changed|shaped|taught|showed|gave|made)\b/i.test(text) ||
+    /\bi (realized|understood|discovered|found)\b/i.test(text)
 
   const promptChecks = {
     identity: { met: hasIdentity, label: 'Personal identity/meaning present' },
-    significance: { met: hasPersonalStakes || hasIdentity, label: 'Personal significance shown' },
-    personal_stakes: { met: hasPersonalStakes, label: 'Stakes or emotional investment present' },
-    incomplete_without: { met: hasPersonalStakes, label: '"Incomplete without it" feeling conveyed' },
+    significance: { met: hasMeaning, label: 'Personal significance shown' },
+    personal_stakes: { met: hasPersonalStakes || hasRealWorld, label: 'Stakes or emotional investment present' },
+    incomplete_without: { met: hasPersonalStakes || hasThematicAnchor, label: '"Incomplete without it" feeling conveyed' },
     subject_passion: { met: hasSubjectPassion, label: 'Subject passion demonstrated' },
     academic_engagement: { met: hasAcademicEngagement, label: 'Academic engagement shown' },
     future_goals: { met: hasFutureGoals, label: 'Future goals mentioned' },
@@ -501,8 +563,12 @@ function analyzeAlignment(text, essayTypeId) {
 
   const flags = []
   const missed = checks.filter(c => !c.met)
-  if (missed.length > 0) flags.push(`Missing prompt elements: ${missed.map(m => m.label).join('; ')}`)
-  if (!hasRealWorld && !hasPersonalStakes) flags.push('Topic dominates over personal story. Make it about YOU, not the subject.')
+  if (missed.length > 0 && missed.length >= checks.length / 2) {
+    flags.push(`Consider strengthening: ${missed.map(m => m.label).join('; ')}`)
+  }
+  if (!hasRealWorld && !hasPersonalStakes && !hasThematicAnchor) {
+    flags.push('Essay may benefit from more personal grounding. Connect the topic to specific moments in your life.')
+  }
 
   return { score, checks, passed, total: checks.length, flags }
 }
@@ -719,7 +785,21 @@ function runAllChecks(text, essayTypeId, fingerprints) {
     { key: 'mechanics', label: 'Writing mechanics', score: mechanics.score, weight: 5 },
   ]
 
-  const overall = Math.round(checks.reduce((s, c) => s + c.score * c.weight, 0) / 100)
+  const overall_raw = Math.round(checks.reduce((s, c) => s + c.score * c.weight, 0) / 100)
+
+  // NEW: Core/Depth/Penalty scoring model (admissions-style)
+  const coreScore = (narrative.score + specificity.score + agency.score + mechanics.score) / 4 / 100
+  const depthScore = (insight.score * 0.4 + transformation.score * 0.4 + alignment.score * 0.2) / 100
+  const penaltyScore = (genericness.score * 0.3 + ending.score * 0.3) / 100
+
+  let overall = Math.round(
+    (coreScore * 0.50 + depthScore * 0.35 + (1 - penaltyScore) * 0.15) * 100
+  )
+
+  // GUARDRAIL: Strong narrative + high specificity can never be "needs significant revision"
+  if (coreScore > 0.7 && overall < 60) overall = 65
+  if (narrative.score >= 70 && specificity.score >= 70 && overall < 55) overall = 60
+  overall = Math.max(0, Math.min(100, overall))
 
   // Collect all flags (priority order: similarity > AI > core modules > ending > genericness)
   const allFlags = []
@@ -835,7 +915,8 @@ function ReportCard({ result, meta, onBack }) {
   }, [result.overall, downloading, meta.college])
 
   const { details, checks, overall, essayClass, allFlags } = result
-  const passed = overall >= 60
+  const passed = overall >= 65
+  const strong = overall >= 75
   const storyChecks = checks.slice(0, 3)
   const contentChecks = checks.slice(3, 6)
   const mechChecks = checks.slice(6)
@@ -916,19 +997,21 @@ function ReportCard({ result, meta, onBack }) {
         <div className={'rc-conclusion ' + (passed ? 'rc-pass' : 'rc-fail')}>
           <div className="rc-conclusion-icon">{passed ? '\u2713' : '\u2717'}</div>
           <div className="rc-conclusion-body">
-            <div className="rc-conclusion-title">{passed ? 'Your essay is ready for expert review' : 'Your essay needs significant revision'}</div>
+            <div className="rc-conclusion-title">{strong ? 'Your essay is ready for expert review' : passed ? 'Strong essay with room to deepen' : 'Your essay needs more personal depth'}</div>
             <div className="rc-conclusion-score">Overall score: <strong>{overall}/100</strong> (weighted)</div>
 
             {details.transformation.arcStrength === 0 && (
               <div className="rc-conclusion-rec" style={{ fontWeight: 500, fontStyle: 'normal' }}>
-                Critical: No transformation arc detected. Add a clear before/after shift showing how you changed.
+                Consider adding a transformation arc: show how you changed over time, not just what you did.
               </div>
             )}
 
             <div className="rc-conclusion-rec">
-              {passed
-                ? 'This essay shows personal depth. Take it to a counselor for final polish before submission.'
-                : 'Rewrite focusing on: personal stories over explanation, specific moments over abstract ideas, and a clear transformation arc. Then re-analyze.'}
+              {strong
+                ? 'This essay shows strong personal depth. Take it to a counselor for final polish before submission.'
+                : passed
+                  ? 'Your essay has a solid foundation. Consider deepening reflection and making your personal growth more explicit, then re-analyze.'
+                  : 'Focus on: specific personal moments over explanation, showing decisions you made, and making your transformation visible. Then re-analyze.'}
             </div>
           </div>
         </div>
