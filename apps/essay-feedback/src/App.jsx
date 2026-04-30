@@ -460,31 +460,24 @@ function ReportCard({ result, meta, onBack }) {
 
       const pdfW = 210
       const pdfH = 297
-      const margin = 10
+      const margin = 8
       const contentW = pdfW - margin * 2
-      const scaleFactor = contentW / imgW
+      const contentH = pdfH - margin * 2
+
+      // Scale to fit entire report on one page
+      const scaleByW = contentW / imgW
+      const scaleByH = contentH / imgH
+      const scale = Math.min(scaleByW, scaleByH)
+
+      const renderW = imgW * scale
+      const renderH = imgH * scale
+
+      // Center on page
+      const offsetX = margin + (contentW - renderW) / 2
+      const offsetY = margin + (contentH - renderH) / 2
 
       const pdf = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' })
-
-      const pageContentH = pdfH - margin * 2
-      const pageImgH = pageContentH / scaleFactor
-      let yOffset = 0
-      let pageNum = 0
-
-      while (yOffset < imgH) {
-        if (pageNum > 0) pdf.addPage()
-        const sliceH = Math.min(pageImgH, imgH - yOffset)
-        const sliceCanvas = document.createElement('canvas')
-        sliceCanvas.width = imgW
-        sliceCanvas.height = Math.ceil(sliceH)
-        const ctx = sliceCanvas.getContext('2d')
-        ctx.drawImage(canvas, 0, yOffset, imgW, sliceH, 0, 0, imgW, Math.ceil(sliceH))
-        const sliceData = sliceCanvas.toDataURL('image/png')
-        const sliceRenderH = sliceH * scaleFactor
-        pdf.addImage(sliceData, 'PNG', margin, margin, contentW, sliceRenderH)
-        yOffset += sliceH
-        pageNum++
-      }
+      pdf.addImage(imgData, 'PNG', offsetX, offsetY, renderW, renderH)
 
       const filename = `essay-report-${(meta.college || 'essay').replace(/\s+/g, '-').toLowerCase()}-${new Date().toISOString().slice(0, 10)}.pdf`
       pdf.save(filename)
