@@ -397,6 +397,14 @@ button { cursor: pointer; font-family: inherit; }
   line-height: 1.5;
   font-weight: 500;
 }
+.rc-status-item {
+  font-size: 11px;
+  color: #5a5347;
+  line-height: 1.6;
+}
+.rc-item-wrong { color: #c0392b; font-weight: 700; }
+.rc-item-right { color: #1a6e3a; font-weight: 700; }
+.rc-item-type { color: #8a7f72; font-weight: 500; }
 
 /* Overall score box */
 .rc-overall-box {

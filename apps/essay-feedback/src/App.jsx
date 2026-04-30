@@ -639,6 +639,152 @@ function analyzeMechanics(text) {
 }
 
 /* ================================================================
+   PRACTICAL CHECK 1: SPELLING
+   ================================================================ */
+const MISSPELLINGS = {
+  'acheive':'achieve','acheiving':'achieving','accomodate':'accommodate',
+  'accross':'across','agressive':'aggressive','apparantly':'apparently',
+  'arguement':'argument','basicly':'basically','begining':'beginning',
+  'beleive':'believe','benifit':'benefit','buisness':'business',
+  'calender':'calendar','catagory':'category','cemetary':'cemetery',
+  'charachter':'character','comming':'coming','commited':'committed',
+  'comparision':'comparison','competance':'competence','completly':'completely',
+  'concious':'conscious','consistant':'consistent','convienient':'convenient',
+  'definately':'definitely','dependant':'dependent','desparate':'desperate',
+  'developement':'development','diffrence':'difference','dilema':'dilemma',
+  'disapear':'disappear','disapoint':'disappoint','ecstacy':'ecstasy',
+  'embarass':'embarrass','enviroment':'environment','exagerate':'exaggerate',
+  'excercise':'exercise','existance':'existence','experiance':'experience',
+  'familar':'familiar','fasinate':'fascinate','finaly':'finally',
+  'foriegn':'foreign','fourty':'forty','freind':'friend',
+  'fulfil':'fulfill','goverment':'government','grammer':'grammar',
+  'gaurd':'guard','happend':'happened','harrass':'harass',
+  'hieght':'height','humourous':'humorous',
+  'immediatly':'immediately','independant':'independent','indispensible':'indispensable',
+  'innoculate':'inoculate','intellegent':'intelligent','intresting':'interesting',
+  'irresistable':'irresistible','knowlege':'knowledge','liase':'liaise',
+  'libary':'library','liesure':'leisure','maintainance':'maintenance',
+  'millenium':'millennium','mischievious':'mischievous','necesary':'necessary',
+  'neccessary':'necessary','noticable':'noticeable','occassion':'occasion',
+  'occured':'occurred','occurence':'occurrence','oppurtunity':'opportunity',
+  'parliment':'parliament','persistant':'persistent','peice':'piece',
+  'posession':'possession','potatos':'potatoes','preceed':'precede',
+  'privelege':'privilege','proffesional':'professional','pronounciation':'pronunciation',
+  'publically':'publicly','realy':'really','recieve':'receive',
+  'reccomend':'recommend','refered':'referred','relevent':'relevant',
+  'religous':'religious','remeber':'remember','repitition':'repetition',
+  'resistence':'resistance','sence':'sense','seperate':'separate',
+  'seige':'siege','similer':'similar','sinceerly':'sincerely',
+  'speach':'speech','strenght':'strength','succesful':'successful',
+  'suprise':'surprise','tendancy':'tendency','therefor':'therefore',
+  'threshhold':'threshold','tommorow':'tomorrow','tounge':'tongue',
+  'truely':'truly','tyrany':'tyranny','untill':'until',
+  'useable':'usable','vaccuum':'vacuum','vegitable':'vegetable',
+  'visious':'vicious','wether':'whether','wierd':'weird',
+  'writting':'writing','wellfare':'welfare',
+  'alot':'a lot','aswell':'as well','infact':'in fact',
+  'inspite':'in spite','infront':'in front','thankyou':'thank you',
+  'ofcourse':'of course','eventhough':'even though',
+  'teh':'the','hte':'the','adn':'and','taht':'that','waht':'what',
+  'jsut':'just','thier':'their','recieved':'received','wich':'which',
+  'becuase':'because','diffrent':'different','enviorment':'environment',
+  'occassionally':'occasionally','accomodation':'accommodation',
+  'posess':'possess','comittee':'committee','occuring':'occurring',
+  'managment':'management','priviledge':'privilege','persistance':'persistence',
+  'dissappoint':'disappoint','dissapear':'disappear',
+  'acheived':'achieved','beleived':'believed','recieving':'receiving',
+  'occurance':'occurrence','independance':'independence','existance':'existence',
+  'maintainence':'maintenance','occurrance':'occurrence','seperation':'separation',
+  'goverance':'governance','prevelant':'prevalent','concieve':'conceive',
+  'percieve':'perceive','decieve':'deceive','sieze':'seize',
+  'wierd':'weird','freind':'friend','neighbour':'neighbor',
+  'judgement':'judgment','acknowledgement':'acknowledgment',
+}
+
+function checkSpelling(text) {
+  const words = text.match(/\b[a-zA-Z']+\b/g) || []
+  const found = []
+  const seen = new Set()
+  for (const w of words) {
+    const lower = w.toLowerCase()
+    if (lower.length <= 2 || seen.has(lower)) continue
+    if (w[0] === w[0].toUpperCase() && w[0] !== w[0].toLowerCase()) continue
+    if (MISSPELLINGS[lower]) {
+      found.push({ word: w, suggestion: MISSPELLINGS[lower] })
+      seen.add(lower)
+    }
+  }
+  return { count: found.length, items: found }
+}
+
+/* ================================================================
+   PRACTICAL CHECK 2: WORD REPETITION + "I" OVERUSE
+   ================================================================ */
+const STOP_WORDS = new Set([
+  'the','a','an','and','or','but','in','on','at','to','for','of','with',
+  'by','from','as','is','was','are','were','be','been','being','have',
+  'has','had','do','does','did','will','would','could','should','may',
+  'might','shall','can','this','that','these','those','it','its',
+  'my','your','his','her','our','their','we','they','he','she',
+  'me','him','us','them','not','no','so','if','then','than','when',
+  'where','what','which','who','whom','how','all','each','every',
+  'both','few','more','most','other','some','such','only','very',
+  'just','also','about','up','out','into','over','after','before',
+])
+
+function checkRepetition(text) {
+  const words = text.toLowerCase().match(/\b[a-z']+\b/g) || []
+  const totalWords = words.length
+  const freq = {}
+  for (const w of words) {
+    if (STOP_WORDS.has(w) || w.length <= 2) continue
+    freq[w] = (freq[w] || 0) + 1
+  }
+  const overused = Object.entries(freq)
+    .filter(([, c]) => c >= 4)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 8)
+    .map(([word, count]) => ({ word, count }))
+
+  // I/my/me/myself count
+  const iCount = (text.match(/\bI\b/g) || []).length
+  const myCount = (text.match(/\bmy\b/gi) || []).length
+  const meCount = (text.match(/\bme\b/gi) || []).length
+  const myselfCount = (text.match(/\bmyself\b/gi) || []).length
+  const firstPersonTotal = iCount + myCount + meCount + myselfCount
+  const iPer100 = totalWords > 0 ? (iCount / totalWords) * 100 : 0
+
+  return { overused, iCount, myCount, meCount, myselfCount, firstPersonTotal, iPer100, totalWords }
+}
+
+/* ================================================================
+   PRACTICAL CHECK 3: OVERBOASTING
+   ================================================================ */
+const BOAST_PATTERNS = [
+  /\bi('m| am) the (best|greatest|top|only)\b/gi,
+  /\bi single-?handedly\b/gi,
+  /\bunlike (anyone|anybody|everyone) else\b/gi,
+  /\bi always (succeed|win|excel|achieve)\b/gi,
+  /\bi never (fail|lose|give up)\b/gi,
+  /\bno one (else )?(can|could|has|did)\b/gi,
+  /\bi('m| am) (exceptional|extraordinary|unmatched|unparalleled)\b/gi,
+  /\beveryone (admires|respects|looks up to) me\b/gi,
+  /\bi('m| am) (naturally|inherently) (gifted|talented|brilliant)\b/gi,
+  /\bi('m| am) (the smartest|better than|superior)\b/gi,
+  /\bwithout me,?\s/gi,
+  /\bperfect (score|grades|record|GPA)\b/gi,
+]
+
+function checkOverboasting(text) {
+  const found = []
+  for (const p of BOAST_PATTERNS) {
+    const re = new RegExp(p.source, p.flags)
+    for (const m of text.matchAll(re)) found.push(m[0])
+  }
+  return { count: found.length, items: found }
+}
+
+/* ================================================================
    MODULE 8: AI DETECTION (Heuristic - risk signal, not verdict)
    ================================================================ */
 const AI_FORMAL_PHRASES = new Set([
@@ -789,6 +935,11 @@ function runAllChecks(text, essayTypeId, fingerprints) {
   const genericness = detectGenericness(text)
   const ending = detectPredictableEnding(text)
 
+  // Practical checks (visible in report)
+  const spelling = checkSpelling(text)
+  const repetition = checkRepetition(text)
+  const overboasting = checkOverboasting(text)
+
   const checks = [
     { key: 'narrative', label: 'How well you tell your story', score: narrative.score, weight: 15 },
     { key: 'agency', label: 'How much YOU are doing things', score: agency.score, weight: 15 },
@@ -876,7 +1027,7 @@ function runAllChecks(text, essayTypeId, fingerprints) {
 
   return {
     checks, overall, essayClass, allFlags, percentile,
-    details: { narrative, agency, transformation, specificity, insight, alignment, mechanics, similarity, ai, genericness, ending },
+    details: { narrative, agency, transformation, specificity, insight, alignment, mechanics, similarity, ai, genericness, ending, spelling, repetition, overboasting },
   }
 }
 
@@ -1028,38 +1179,167 @@ function ReportCard({ result, meta, onBack }) {
 
       <div className="rc-body">
 
-        {/* STATUS TABLE */}
+        {/* STATUS TABLE - PRACTICAL CHECKS */}
         <div className="rc-section">
           <div className="rc-stitle">How your essay performs</div>
           <div className="rc-status-table">
-            {checks.map(c => {
-              const status = c.score >= 75 ? 'good' : c.score >= 50 ? 'ok' : 'weak'
-              const statusLabel = status === 'good' ? 'Strong' : status === 'ok' ? 'Needs work' : 'Weak'
-              const interp = getInterpretation(c.key, c.score)
-              const fix = {
-                narrative: 'Add more real scenes from your life instead of explaining ideas.',
-                agency: 'Show more moments where YOU made a decision or took action.',
-                transformation: 'Add 1 moment where you realized something important or changed your mind.',
-                specificity: 'Replace vague statements with real names, places, and details.',
-                insight: 'Add 1 moment where you questioned yourself or saw things differently.',
-                alignment: 'Make it clearer why this topic matters to YOU personally.',
-                mechanics: 'Break up long sentences and vary your sentence length.',
-              }[c.key] || ''
+
+            {/* 1. SPELLING */}
+            {(() => {
+              const s = details.spelling
+              const ok = s.count === 0
               return (
-                <div className={'rc-status-row rc-status-' + status} key={c.key}>
+                <div className={'rc-status-row rc-status-' + (ok ? 'good' : 'weak')}>
                   <div className="rc-status-top">
-                    <span className="rc-status-label">{c.label}</span>
-                    <span className={'rc-status-badge rc-badge-' + status}>{statusLabel}</span>
+                    <span className="rc-status-label">Spelling</span>
+                    <span className={'rc-status-badge rc-badge-' + (ok ? 'good' : 'weak')}>{ok ? 'No errors' : `${s.count} error${s.count > 1 ? 's' : ''}`}</span>
                   </div>
-                  {status !== 'good' && (
+                  {!ok && (
                     <div className="rc-status-detail">
-                      <div className="rc-status-why">{interp}</div>
-                      <div className="rc-status-fix">{fix}</div>
+                      {s.items.map((item, i) => (
+                        <div className="rc-status-item" key={i}>
+                          <span className="rc-item-wrong">"{item.word}"</span> should be <span className="rc-item-right">"{item.suggestion}"</span>
+                        </div>
+                      ))}
                     </div>
                   )}
                 </div>
               )
-            })}
+            })()}
+
+            {/* 2. GRAMMAR */}
+            {(() => {
+              const g = details.mechanics.grammarIssues
+              const ok = g.length === 0
+              return (
+                <div className={'rc-status-row rc-status-' + (ok ? 'good' : g.length > 3 ? 'weak' : 'ok')}>
+                  <div className="rc-status-top">
+                    <span className="rc-status-label">Grammar</span>
+                    <span className={'rc-status-badge rc-badge-' + (ok ? 'good' : g.length > 3 ? 'weak' : 'ok')}>{ok ? 'No issues' : `${g.length} issue${g.length > 1 ? 's' : ''}`}</span>
+                  </div>
+                  {!ok && (
+                    <div className="rc-status-detail">
+                      {g.slice(0, 5).map((item, i) => (
+                        <div className="rc-status-item" key={i}>
+                          <span className="rc-item-type">{item.type}:</span> "{item.text}"
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )
+            })()}
+
+            {/* 3. REPEATED WORDS + I USAGE */}
+            {(() => {
+              const r = details.repetition
+              const hasOveruse = r.overused.length > 0
+              const highI = r.iPer100 > 5
+              const ok = !hasOveruse && !highI
+              return (
+                <div className={'rc-status-row rc-status-' + (ok ? 'good' : 'ok')}>
+                  <div className="rc-status-top">
+                    <span className="rc-status-label">Word repetition and "I" usage</span>
+                    <span className={'rc-status-badge rc-badge-' + (ok ? 'good' : 'ok')}>{ok ? 'Good variety' : 'Some repetition'}</span>
+                  </div>
+                  {!ok && (
+                    <div className="rc-status-detail">
+                      {hasOveruse && (
+                        <div className="rc-status-item">
+                          Repeated words: {r.overused.map(w => `"${w.word}" (${w.count}x)`).join(', ')}
+                        </div>
+                      )}
+                      <div className="rc-status-item">
+                        "I" appears {r.iCount}x, "my" {r.myCount}x, "me" {r.meCount}x ({r.firstPersonTotal} total in {r.totalWords} words)
+                      </div>
+                      {highI && <div className="rc-status-fix">Try starting more sentences with actions instead of "I"</div>}
+                    </div>
+                  )}
+                </div>
+              )
+            })()}
+
+            {/* 4. SIMILARITY TO PAST ESSAYS */}
+            {(() => {
+              const sim = details.similarity
+              if (!sim.checked) return null
+              const topMatch = sim.matches.length > 0 ? sim.matches[0] : null
+              const ok = !topMatch || topMatch.similarity < 30
+              const concern = topMatch && topMatch.similarity >= 50
+              return (
+                <div className={'rc-status-row rc-status-' + (ok ? 'good' : concern ? 'weak' : 'ok')}>
+                  <div className="rc-status-top">
+                    <span className="rc-status-label">Compared to {sim.totalCompared.toLocaleString()} past essays</span>
+                    <span className={'rc-status-badge rc-badge-' + (ok ? 'good' : concern ? 'weak' : 'ok')}>{ok ? 'Original' : concern ? `${topMatch.similarity}% similar` : 'Some overlap'}</span>
+                  </div>
+                  {!ok && topMatch && (
+                    <div className="rc-status-detail">
+                      <div className="rc-status-why">{topMatch.similarity}% similar to a previously submitted {topMatch.type || 'essay'}{topMatch.college ? ` for ${topMatch.college}` : ''}</div>
+                      <div className="rc-status-fix">Make your essay more unique. Use your own specific experiences.</div>
+                    </div>
+                  )}
+                </div>
+              )
+            })()}
+
+            {/* 5. AI DETECTION */}
+            {(() => {
+              const a = details.ai
+              const ok = a.score < 35
+              const concern = a.score >= 60
+              return (
+                <div className={'rc-status-row rc-status-' + (ok ? 'good' : concern ? 'weak' : 'ok')}>
+                  <div className="rc-status-top">
+                    <span className="rc-status-label">AI detection</span>
+                    <span className={'rc-status-badge rc-badge-' + (ok ? 'good' : concern ? 'weak' : 'ok')}>{ok ? 'Looks human' : concern ? 'AI patterns found' : 'Uncertain'}</span>
+                  </div>
+                  {!ok && (
+                    <div className="rc-status-detail">
+                      <div className="rc-status-why">Your essay shows patterns that could indicate AI-assisted writing (this is a signal, not a verdict).</div>
+                      <div className="rc-status-fix">Add more personal, messy, real details. AI tends to write too smoothly.</div>
+                    </div>
+                  )}
+                </div>
+              )
+            })()}
+
+            {/* 6. OVERBOASTING */}
+            {(() => {
+              const b = details.overboasting
+              const ok = b.count === 0
+              return (
+                <div className={'rc-status-row rc-status-' + (ok ? 'good' : 'ok')}>
+                  <div className="rc-status-top">
+                    <span className="rc-status-label">Overboasting</span>
+                    <span className={'rc-status-badge rc-badge-' + (ok ? 'good' : 'ok')}>{ok ? 'Balanced tone' : `${b.count} instance${b.count > 1 ? 's' : ''}`}</span>
+                  </div>
+                  {!ok && (
+                    <div className="rc-status-detail">
+                      {b.items.slice(0, 3).map((item, i) => (
+                        <div className="rc-status-item" key={i}>"{item}"</div>
+                      ))}
+                      <div className="rc-status-fix">Show achievements through actions, not claims. Let the reader draw their own conclusions.</div>
+                    </div>
+                  )}
+                </div>
+              )
+            })()}
+
+            {/* 7. ESSAY LENGTH */}
+            {(() => {
+              const wc = meta.wordCount
+              const limitNum = parseInt(meta.question, 10) // not always available
+              const ok = true // length info is neutral
+              return (
+                <div className="rc-status-row rc-status-good">
+                  <div className="rc-status-top">
+                    <span className="rc-status-label">Essay length</span>
+                    <span className="rc-status-badge rc-badge-good">{wc} words</span>
+                  </div>
+                </div>
+              )
+            })()}
+
           </div>
         </div>
 
