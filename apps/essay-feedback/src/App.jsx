@@ -1140,7 +1140,9 @@ function ReportCard({ result, meta, onBack }) {
         </div>
 
         <div className="rc-actions no-print">
-          {passed && <a className="rc-btn rc-btn-primary" href="/tutor-counselor/" target="_top">Take to a counselor</a>}
+          {passed && <button className="rc-btn rc-btn-primary" type="button" onClick={() => {
+            try { window.parent.postMessage({ type: 'bc-switch-tool', toolId: 'tutor-counselor' }, window.location.origin) } catch(e) {}
+          }}>Take to a counselor</button>}
           <button className="rc-btn rc-btn-secondary" onClick={handleDownload} type="button" disabled={downloading}>
             {downloading ? 'Generating PDF...' : 'Download report (PDF)'}
           </button>

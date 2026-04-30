@@ -888,7 +888,23 @@
   window.addEventListener('message', (e) => {
     if (e.origin !== window.location.origin) return;
     const d = e.data;
-    if (!d || d.type !== 'bc-event') return;
+    if (!d) return;
+
+    // Tool switch request (e.g. essay feedback -> tutor search)
+    if (d.type === 'bc-switch-tool') {
+      const tools = [
+        { id: 'careers', label: 'Career Discovery', url: '/careers/' },
+        { id: 'profile', label: 'Building Your Profile', url: '/profile/' },
+        { id: 'college', label: 'Choosing The Right College', url: '/college-search/' },
+        { id: 'tutor-counselor', label: 'Find a Tutor or Counselor', url: '/tutor-counselor/' },
+        { id: 'essays', label: 'Essay Feedback', url: '/essay-feedback/' },
+      ];
+      const target = tools.find(t => t.id === d.toolId);
+      if (target) openTool(target);
+      return;
+    }
+
+    if (d.type !== 'bc-event') return;
     // Log with the user context the hub holds
     logEvent({
       eventType: d.name || 'tool_event',
