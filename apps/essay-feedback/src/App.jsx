@@ -3,19 +3,11 @@ import { emitEvent } from './bcEvents'
 import './index.css'
 
 const ESSAY_TYPES = [
-  'UC Essay',
-  'UCAS Personal Statement',
   'CommonApp (main essay)',
-  'CommonApp (additional information)',
-  'CommonApp (school change)',
-  'CommonApp (Covid-19)',
-  'Extra-Curricular Activity Essay',
-  'Creative Essay',
-  'Why Us Essay',
+  'UCAS Personal Statement',
+  'Why This College Essay',
   'Why This Major Essay',
-  'Community/Leadership Essay',
-  'Personality Essay',
-  'Other',
+  'Personal Essay',
 ]
 
 function countWords(text) {
