@@ -559,6 +559,141 @@ function analyzeMechanics(text) {
 }
 
 /* ================================================================
+   MODULE 8: AI DETECTION (Heuristic - risk signal, not verdict)
+   ================================================================ */
+const AI_FORMAL_PHRASES = new Set([
+  'furthermore','moreover','additionally','consequently','nevertheless',
+  'in conclusion','it is important to note','this highlights','this demonstrates',
+  'this underscores','it is worth noting','this serves as','this illustrates',
+  'this exemplifies','in essence','fundamentally','inherently','ultimately',
+  'it can be argued','this notion','this paradigm','multifaceted',
+])
+
+function detectAI(text) {
+  const sentences = splitSentences(text)
+  if (sentences.length < 3) return { score: 0, flags: [] }
+  const words = text.toLowerCase().split(/\s+/)
+  const totalWords = words.length
+
+  // 1. Sentence length variance (AI = too uniform)
+  const lengths = sentences.map(s => s.split(/\s+/).length)
+  const mean = lengths.reduce((a, b) => a + b, 0) / lengths.length
+  const stdDev = Math.sqrt(lengths.reduce((s, l) => s + (l - mean) ** 2, 0) / lengths.length)
+  const cv = mean > 0 ? stdDev / mean : 0
+  const lowVariance = cv < 0.25 ? 30 : cv < 0.35 ? 15 : 0
+
+  // 2. Formal AI phrases
+  let formalCount = 0
+  for (const w of AI_FORMAL_PHRASES) { if (text.toLowerCase().includes(w)) formalCount++ }
+  const formalScore = Math.min(30, formalCount * 8)
+
+  // 3. Zero grammar errors + high complexity = suspicious
+  const grammarErrors = [...text.matchAll(/\b(\w+)\s+\1\b/gi)].length
+  const zeroErrorBonus = grammarErrors === 0 && totalWords > 300 ? 15 : 0
+
+  // 4. Structure uniformity (AI follows intro-body-insight-conclusion)
+  const paragraphs = text.split(/\n\s*\n/).filter(p => p.trim())
+  const paraLengths = paragraphs.map(p => p.split(/\s+/).length)
+  const paraCV = paraLengths.length > 2 ?
+    Math.sqrt(paraLengths.reduce((s, l) => s + (l - paraLengths.reduce((a,b) => a+b,0)/paraLengths.length) ** 2, 0) / paraLengths.length) /
+    (paraLengths.reduce((a,b) => a+b,0) / paraLengths.length) : 1
+  const structureScore = paraCV < 0.2 ? 20 : paraCV < 0.3 ? 10 : 0
+
+  const raw = lowVariance + formalScore + zeroErrorBonus + structureScore
+  const score = Math.min(100, raw)
+
+  let classification = 'likely_human'
+  if (score >= 60) classification = 'likely_ai_assisted'
+  else if (score >= 35) classification = 'uncertain'
+
+  const flags = []
+  if (score >= 60) flags.push(`AI risk: ${classification}. Patterns consistent with AI-assisted writing (score: ${score}/100). This is a risk signal, not a definitive judgment.`)
+  else if (score >= 35) flags.push(`AI check: uncertain (score: ${score}/100). Some patterns could indicate AI assistance.`)
+
+  return { score, classification, flags, detail: { lowVariance, formalScore, zeroErrorBonus, structureScore } }
+}
+
+/* ================================================================
+   MODULE 9: GENERICNESS DETECTION
+   ================================================================ */
+const GENERIC_PHRASES = [
+  'this taught me','i learned the importance','this experience changed me',
+  'it made me who i am','i grew as a person','this helped me grow',
+  'i became a better person','it opened my eyes','i want to make a difference',
+  'this shaped my perspective','i developed a passion','it was a life-changing',
+  'this instilled in me','i have always been passionate','this made me realize',
+]
+
+function detectGenericness(text) {
+  const lower = text.toLowerCase()
+  const words = lower.split(/\s+/)
+  const totalWords = words.length
+
+  // Abstract word density
+  let abstractCount = 0
+  for (const w of words) {
+    if (ABSTRACT_NOUNS.has(w.replace(/[^a-z]/g, ''))) abstractCount++
+  }
+  const abstractDensity = totalWords > 0 ? abstractCount / totalWords : 0
+
+  // Generic phrase count
+  let genericPhraseCount = 0
+  const foundPhrases = []
+  for (const p of GENERIC_PHRASES) {
+    if (lower.includes(p)) { genericPhraseCount++; foundPhrases.push(p) }
+  }
+
+  // Lack of specificity (no proper nouns, no numbers)
+  const properNouns = (text.match(/(?<=\s)[A-Z][a-z]+/g) || []).length
+  const numbers = (text.match(/\b\d+\b/g) || []).length
+  const lowSpecificity = properNouns < 2 && numbers < 1 ? 25 : 0
+
+  const raw = Math.min(100, Math.round(abstractDensity * 500) + genericPhraseCount * 12 + lowSpecificity)
+  const isGeneric = raw >= 50
+
+  const flags = []
+  if (isGeneric) {
+    flags.push(`Essay reads as generic (${raw}/100). Could apply to almost anyone. Add specific moments, names, and details unique to you.`)
+    if (foundPhrases.length > 0) flags.push(`Generic phrases: ${foundPhrases.slice(0, 3).map(p => `"${p}"`).join(', ')}`)
+  }
+
+  return { score: raw, isGeneric, flags }
+}
+
+/* ================================================================
+   MODULE 10: PREDICTABLE ENDING DETECTION
+   ================================================================ */
+const CLICHE_ENDINGS = [
+  'this experience taught me','i learned that','this made me who i am today',
+  'i will carry this forward','this changed my life','i am grateful for',
+  'this is why i want to','this experience shaped','i now understand',
+  'i will continue to','this journey has made me','this has prepared me',
+  'i am excited to','i look forward to','i am ready to',
+  'this is what drives me','i hope to continue',
+]
+
+function detectPredictableEnding(text) {
+  const paragraphs = text.split(/\n\s*\n/).filter(p => p.trim())
+  const lastPara = paragraphs.length > 0 ? paragraphs[paragraphs.length - 1].toLowerCase() : text.toLowerCase()
+  const lastSentences = splitSentences(lastPara)
+  const lastTwo = lastSentences.slice(-3).join(' ').toLowerCase()
+
+  let matchCount = 0
+  const found = []
+  for (const c of CLICHE_ENDINGS) {
+    if (lastTwo.includes(c)) { matchCount++; found.push(c) }
+  }
+
+  const score = Math.min(100, matchCount * 35)
+  const isPredictable = score >= 35
+
+  const flags = []
+  if (isPredictable) flags.push(`Predictable ending detected: ${found.slice(0, 2).map(f => `"${f}"`).join(', ')}. End with a specific image or action, not a generic takeaway.`)
+
+  return { score, isPredictable, flags }
+}
+
+/* ================================================================
    RUN ALL CHECKS
    ================================================================ */
 function runAllChecks(text, essayTypeId, fingerprints) {
@@ -570,6 +705,9 @@ function runAllChecks(text, essayTypeId, fingerprints) {
   const alignment = analyzeAlignment(text, essayTypeId)
   const mechanics = analyzeMechanics(text)
   const similarity = checkSimilarity(text, fingerprints)
+  const ai = detectAI(text)
+  const genericness = detectGenericness(text)
+  const ending = detectPredictableEnding(text)
 
   const checks = [
     { key: 'narrative', label: 'Narrative presence', score: narrative.score, weight: 15 },
@@ -583,21 +721,31 @@ function runAllChecks(text, essayTypeId, fingerprints) {
 
   const overall = Math.round(checks.reduce((s, c) => s + c.score * c.weight, 0) / 100)
 
-  // Collect all flags
-  const allFlags = [
-    ...narrative.flags, ...agency.flags, ...transformation.flags,
-    ...specificity.flags, ...insight.flags, ...alignment.flags, ...mechanics.flags,
-  ]
+  // Collect all flags (priority order: similarity > AI > core modules > ending > genericness)
+  const allFlags = []
 
-  // Similarity flags
+  // Similarity flags first
   if (similarity.checked && similarity.matches.length > 0) {
     const top = similarity.matches[0]
     if (top.similarity >= 50) {
-      allFlags.unshift(`This essay is ${top.similarity}% similar to a previously submitted ${top.type || 'essay'}${top.college ? ' for ' + top.college : ''}. Consider making it more original.`)
+      allFlags.push(`This essay is ${top.similarity}% similar to a previously submitted ${top.type || 'essay'}${top.college ? ' for ' + top.college : ''}. Consider making it more original.`)
     } else if (top.similarity >= 30) {
       allFlags.push(`Some overlap (${top.similarity}%) detected with a past ${top.type || 'essay'}${top.college ? ' for ' + top.college : ''}.`)
     }
   }
+
+  // AI flags
+  allFlags.push(...ai.flags)
+
+  // Core module flags
+  allFlags.push(
+    ...narrative.flags, ...agency.flags, ...transformation.flags,
+    ...specificity.flags, ...insight.flags, ...alignment.flags, ...mechanics.flags,
+  )
+
+  // Ending + genericness flags
+  allFlags.push(...ending.flags)
+  allFlags.push(...genericness.flags)
 
   let essayClass = 'Balanced'
   if (narrative.ratio < 0.3) essayClass = 'Topic-explanation (weak)'
@@ -606,7 +754,7 @@ function runAllChecks(text, essayTypeId, fingerprints) {
 
   return {
     checks, overall, essayClass, allFlags,
-    details: { narrative, agency, transformation, specificity, insight, alignment, mechanics, similarity },
+    details: { narrative, agency, transformation, specificity, insight, alignment, mechanics, similarity, ai, genericness, ending },
   }
 }
 
