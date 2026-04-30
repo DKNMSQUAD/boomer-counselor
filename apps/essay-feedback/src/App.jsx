@@ -7,22 +7,7 @@ import './index.css'
 /* ================================================================
    ESSAY API (Google Cloud Function - Phase 2)
    ================================================================ */
-const ESSAY_API_URL = 'https://asia-south1-nm-squad-492811.cloudfunctions.net/essayApi'
-
-async function fetchApi(path, body) {
-  try {
-    const res = await fetch(ESSAY_API_URL + path, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-    })
-    if (!res.ok) return null
-    return await res.json()
-  } catch (e) {
-    console.warn('[EssayAPI]', path, 'failed:', e.message)
-    return null
-  }
-}
+/* No external API needed - similarity runs client-side against bundled fingerprints */
 
 /* ================================================================
    ESSAY TYPES + PROMPT EXPECTATIONS
@@ -719,6 +704,9 @@ function ReportCard({ result, meta, onBack }) {
           <div className="rc-hdr-mt">{meta.essayType}</div>
           <div className="rc-hdr-mt">{meta.wordCount} words / {new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</div>
           <div className="rc-hdr-mt">Type: {essayClass}</div>
+          {details.similarity && details.similarity.checked && (
+            <div className="rc-hdr-mt">Compared against {details.similarity.totalCompared.toLocaleString()} past essays</div>
+          )}
         </div>
       </div>
 
@@ -821,6 +809,7 @@ export default function App() {
   const [essay, setEssay] = useState('')
   const [result, setResult] = useState(null)
   const [analyzing, setAnalyzing] = useState(false)
+  const [fingerprints, setFingerprints] = useState(null)
 
   const wordCount = useMemo(() => countWords(essay), [essay])
   const charCount = essay.length
@@ -828,35 +817,23 @@ export default function App() {
   const isOver = Number.isFinite(limitNum) && limitNum > 0 && wordCount > limitNum
   const canSubmit = essayType && limit && school && essay.trim().length > 50
 
-  useEffect(() => { emitEvent('tool_open', { action: 'open' }) }, [])
+  useEffect(() => {
+    emitEvent('tool_open', { action: 'open' })
+    loadFingerprints().then(fp => { if (fp) setFingerprints(fp) })
+  }, [])
 
-  async function handleAnalyze(e) {
+  function handleAnalyze(e) {
     e.preventDefault()
     if (!canSubmit) return
     setAnalyzing(true)
     const typeObj = ESSAY_TYPES.find(t => t.label === essayType)
     emitEvent('essay_submit', { action: 'submit', targetLabel: essayType, extraData: { essay_type: essayType, college, school, word_count: wordCount, question, essay_text: essay } })
-
-    // Run client-side analysis immediately
-    const res = runAllChecks(essay, typeObj ? typeObj.id : 'commonapp')
-
-    // Call similarity API (non-blocking, results merge in)
-    const simPromise = fetchApi('/similarity', { essay_text: essay, essay_type: essayType, college })
-    const sim = await simPromise
-    if (sim && sim.flag) {
-      res.allFlags.unshift(sim.flag.message)
-      res.similarity = sim
-    }
-
-    setResult(res)
-    setAnalyzing(false)
-    emitEvent('report_generated', { action: 'analyze', extraData: { overall: res.overall, essayClass: res.essayClass, scores: Object.fromEntries(res.checks.map(c => [c.key, c.score])) } })
-
-    // Store essay in background (don't block the UI)
-    fetchApi('/store', {
-      essay_text: essay, essay_type: essayType, college, question, school,
-      student_name: '', student_email: '',
-    })
+    setTimeout(() => {
+      const res = runAllChecks(essay, typeObj ? typeObj.id : 'commonapp', fingerprints)
+      setResult(res)
+      setAnalyzing(false)
+      emitEvent('report_generated', { action: 'analyze', extraData: { overall: res.overall, essayClass: res.essayClass, scores: Object.fromEntries(res.checks.map(c => [c.key, c.score])) } })
+    }, 150)
   }
 
   if (result) {
