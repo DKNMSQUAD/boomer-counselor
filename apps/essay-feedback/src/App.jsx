@@ -81,16 +81,17 @@ export default function App() {
 
   return (
     <div className='ef-shell'>
-      <header className='ef-masthead'>
-        <img src={import.meta.env.BASE_URL + 'logo.png'} alt='Boomer Counselor' />
-        <h1>Essay Feedback</h1>
-        <span className='ef-masthead-sub'>Beta</span>
+      <header className='bc-masthead'>
+        <div className='bc-masthead-inner'>
+          <img className='bc-masthead-logo' src={import.meta.env.BASE_URL + 'logo.png'} alt='Boomer Counselor' />
+          <div className='bc-masthead-titles'>
+            <h1 className='bc-masthead-title'>Essay Feedback</h1>
+            <div className='bc-masthead-tagline'>Polish your draft.</div>
+          </div>
+        </div>
       </header>
 
       <main className='ef-page'>
-        <h2 className='ef-intro'>Get feedback on your essay.</h2>
-        <p className='ef-intro-sub'>Paste your draft. We will review it.</p>
-
         <form onSubmit={handleSubmit}>
           <div className='ef-field'>
             <label className='ef-label' htmlFor='ef-type'>Essay type</label>
