@@ -16,8 +16,6 @@ export async function onRequestPost(context) {
   }
 
   const { text, language = 'en-US' } = body
-  const url = new URL(request.url)
-  const debug = url.searchParams.get('debug') === '1'
 
   if (!text || text.trim().length < 5) {
     return jsonResponse({ spelling: [], grammar: [], ok: true })
@@ -28,8 +26,6 @@ export async function onRequestPost(context) {
   formData.append('language', language)
 
   let tgData
-  let tgStatus
-  let rawText
   try {
     const tgRes = await fetch('https://textgears-textgears-v1.p.rapidapi.com/grammar', {
       method: 'POST',
@@ -40,13 +36,10 @@ export async function onRequestPost(context) {
       },
       body: formData.toString(),
     })
-    tgStatus = tgRes.status
-    rawText = await tgRes.text()
-    try {
-      tgData = JSON.parse(rawText)
-    } catch {
-      tgData = null
+    if (!tgRes.ok) {
+      return jsonResponse({ spelling: [], grammar: [], ok: false, error: `TextGears returned ${tgRes.status}` })
     }
+    tgData = await tgRes.json()
   } catch (err) {
     return jsonResponse({ error: 'TextGears request failed', detail: String(err) }, 502)
   }
@@ -59,7 +52,7 @@ export async function onRequestPost(context) {
       const item = {
         bad: err.bad || '',
         suggestion: Array.isArray(err.better) && err.better.length > 0 ? err.better[0] : '',
-        description: err.description || '',
+        description: extractDescription(err.description),
       }
       if (err.type === 'spelling') {
         spelling.push(item)
@@ -69,21 +62,11 @@ export async function onRequestPost(context) {
     }
   }
 
-  const result = {
+  return jsonResponse({
     spelling,
     grammar,
     ok: tgData?.response?.result ?? true,
-  }
-
-  if (debug) {
-    result._debug = {
-      tgStatus,
-      tgRaw: rawText?.slice(0, 800),
-      tgParsed: tgData,
-    }
-  }
-
-  return jsonResponse(result)
+  })
 }
 
 export async function onRequestOptions() {
@@ -94,6 +77,13 @@ export async function onRequestOptions() {
       'Access-Control-Allow-Headers': 'Content-Type',
     },
   })
+}
+
+function extractDescription(desc) {
+  if (!desc) return ''
+  if (typeof desc === 'string') return desc
+  if (typeof desc === 'object') return desc.en || desc.value || Object.values(desc)[0] || ''
+  return String(desc)
 }
 
 function jsonResponse(data, status = 200) {
