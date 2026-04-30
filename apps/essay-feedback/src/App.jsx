@@ -603,10 +603,27 @@ function analyzeMechanics(text) {
 
   // Grammar issues
   const grammarIssues = []
+  // Passive voice
   const passiveVoice = [...text.matchAll(/\b(was|were|is|are|been|being)\s+(been\s+)?(made|done|given|taken|seen|known|found|told|shown|left|heard|kept|held|brought|written|provided)\b/gi)]
   grammarIssues.push(...passiveVoice.map(m => ({ type: 'Passive voice', text: m[0] })))
-  const repeatedWords = [...text.matchAll(/\b(\w+)\s+\1\b/gi)]
-  grammarIssues.push(...repeatedWords.map(m => ({ type: 'Repeated word', text: m[0] })))
+  // Repeated consecutive words (like "very very", "I I", "the the")
+  const consecutiveReps = [...text.matchAll(/\b(\w+)\s+\1\b/gi)]
+  grammarIssues.push(...consecutiveReps.map(m => ({ type: 'Repeated word', text: m[0] })))
+  // Missing capital after period
+  const missingCaps = [...text.matchAll(/[.!?]\s+[a-z]/g)]
+  grammarIssues.push(...missingCaps.map(m => ({ type: 'Missing capital', text: m[0].trim() })))
+  // Tense inconsistency patterns
+  const tenseIssues = [...text.matchAll(/\b(didnt|doesnt|dont|wasnt|werent|isnt|arent|hasnt|havent|hadnt|couldnt|shouldnt|wouldnt|wont|cant)\s+\w+/gi)]
+  grammarIssues.push(...tenseIssues.map(m => ({ type: 'Missing apostrophe', text: m[0] })))
+  // Subject-verb patterns
+  const svIssues = [...text.matchAll(/\b(I|he|she|it)\s+(are|were|have been)\b|\b(they|we|you)\s+(is|was|has been)\b|\b(results?|things?|people)\s+was\b/gi)]
+  grammarIssues.push(...svIssues.map(m => ({ type: 'Subject-verb mismatch', text: m[0] })))
+  // "didnt knew" type errors
+  const doubleVerb = [...text.matchAll(/\b(did|didn't|does|doesn't|do|don't)\s+(knew|went|saw|came|made|took|gave|had|was|were|thought|felt)\b/gi)]
+  grammarIssues.push(...doubleVerb.map(m => ({ type: 'Double verb error', text: m[0] })))
+  // "it make me" type errors (missing -s or wrong tense)
+  const missingS = [...text.matchAll(/\b(it|he|she|this|that)\s+(make|give|take|come|go|have|do|say|get|know|think|find|tell|become|show|feel)\s/gi)]
+  grammarIssues.push(...missingS.map(m => ({ type: 'Missing verb ending', text: m[0].trim() })))
 
   // Score (lenient, only 5% weight)
   const cvDiff = mean > 0 ? Math.abs((stdDev / mean) - (BASELINE_SENTENCE_LENGTH.stdDev / BASELINE_SENTENCE_LENGTH.mean)) : 0
@@ -985,9 +1002,10 @@ function runAllChecks(text, essayTypeId, fingerprints, dictionary) {
   const iPer100 = repetition.iPer100
   let iScore
   if (iPer100 <= 4) iScore = 100
-  else if (iPer100 <= 6) iScore = 80
-  else if (iPer100 <= 9) iScore = 60
-  else iScore = 40
+  else if (iPer100 <= 6) iScore = 75
+  else if (iPer100 <= 8) iScore = 55
+  else if (iPer100 <= 12) iScore = 35
+  else iScore = 20
 
   /* ---- 6. ORIGINALITY (weight 20%) ---- */
   let origScore = 100
@@ -1001,17 +1019,11 @@ function runAllChecks(text, essayTypeId, fingerprints, dictionary) {
 
   /* ---- 7. NEGATIVE SELF-TALK (weight 15%) ---- */
   const negCount = negativeTalk.count
-  let negScore = 100
-  if (negCount === 1) negScore = 90
-  else if (negCount <= 3) negScore = 80
-  else negScore = 70
+  const negScore = Math.max(0, 100 - negCount * 15)
 
   /* ---- 8. OVERBOASTING (weight 10%) ---- */
   const boastCount = overboasting.count
-  let boastScore = 100
-  if (boastCount === 1) boastScore = 90
-  else if (boastCount <= 3) boastScore = 80
-  else boastScore = 70
+  const boastScore = Math.max(0, 100 - boastCount * 15)
 
   /* ---- WEIGHTED OVERALL ---- */
   const checks = [
