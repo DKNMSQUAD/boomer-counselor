@@ -165,9 +165,11 @@ function doPost(e) {
         listingSheet.getRange(1, 1, 1, 12).setFontWeight('bold').setBackground('#f5c518');
         listingSheet.setFrozenRows(1);
       }
+      const phoneRaw = (data.phone || '').toString().trim();
+      const phoneSafe = /^[=+\-@]/.test(phoneRaw) ? "'" + phoneRaw : phoneRaw;
       listingSheet.appendRow([
         data.timestamp || new Date().toISOString(),
-        data.name || '', data.email || '', data.phone || '',
+        data.name || '', data.email || '', phoneSafe,
         data.organization || '', data.category || '', data.website || '',
         data.city || '', data.country || '', data.description || '',
         data.notes || '', 'Pending'
