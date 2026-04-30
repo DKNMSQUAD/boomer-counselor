@@ -544,6 +544,128 @@ button { cursor: pointer; font-family: inherit; }
 .rc-read-detail { font-size: 11px; color: #8a7f72; }
 .rc-read-tip { font-size: 11px; color: #5a5347; line-height: 1.5; font-style: italic; }
 
+/* Check sections */
+.rc-check {
+  margin-bottom: 14px;
+  padding: 12px 14px;
+  background: #faf7f2;
+  border: 1px solid #d6cfc0;
+  border-radius: 4px;
+}
+.rc-check:last-of-type { margin-bottom: 0; }
+.rc-check-hdr {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+.rc-check-title {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 12px;
+  font-weight: 700;
+  color: #1a1a1a;
+}
+.rc-check-ok {
+  font-size: 11px;
+  font-weight: 700;
+  color: #1a6e3a;
+  background: #e8f5e9;
+  padding: 2px 8px;
+  border-radius: 10px;
+}
+.rc-issue {
+  font-size: 11px;
+  color: #5a5347;
+  line-height: 1.6;
+  padding: 3px 0;
+}
+.rc-wrong { color: #c0392b; font-weight: 700; }
+.rc-right { color: #1a6e3a; font-weight: 700; }
+.rc-issue-type { color: #8a7f72; font-weight: 500; }
+.rc-stat {
+  font-size: 11px;
+  color: #5a5347;
+  line-height: 1.6;
+}
+.rc-suggestion {
+  font-size: 11px;
+  color: #1a6e3a;
+  font-weight: 500;
+  margin-top: 4px;
+  line-height: 1.5;
+}
+.rc-fix-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: #1a1a1a;
+  margin-top: 8px;
+  margin-bottom: 4px;
+}
+
+/* Overall score box */
+.rc-overall-box {
+  text-align: center;
+  padding: 20px;
+  margin: 18px 0;
+  border-top: 2px solid #1a1a1a;
+  border-bottom: 2px solid #1a1a1a;
+}
+.rc-overall-score {
+  font-family: 'Playfair Display', serif;
+  font-size: 52px;
+  font-weight: 900;
+  color: #1a1a1a;
+  line-height: 1;
+}
+.rc-overall-of {
+  font-size: 22px;
+  font-weight: 400;
+  color: #8a7f72;
+}
+.rc-overall-percentile {
+  font-size: 12px;
+  color: #1a6e3a;
+  font-weight: 700;
+  margin-top: 8px;
+}
+
+/* Verdict */
+.rc-verdict {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px;
+  border-radius: 4px;
+  margin-bottom: 16px;
+}
+.rc-verdict-pass {
+  background: #e8f5e9;
+  border: 1.5px solid #4caf50;
+}
+.rc-verdict-rewrite {
+  background: #fff3e0;
+  border: 1.5px solid #f5a623;
+}
+.rc-verdict-icon {
+  font-size: 20px;
+  font-weight: 900;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.rc-verdict-pass .rc-verdict-icon { background: #4caf50; color: #fff; }
+.rc-verdict-rewrite .rc-verdict-icon { background: #f5a623; color: #fff; }
+.rc-verdict-text {
+  font-size: 13px;
+  font-weight: 600;
+  color: #1a1a1a;
+  line-height: 1.4;
+}
+
 /* Fix these sentences */
 .rc-sentence-fix {
   padding: 8px 12px;

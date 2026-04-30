@@ -948,203 +948,113 @@ function detectPredictableEnding(text) {
    RUN ALL CHECKS
    ================================================================ */
 function runAllChecks(text, essayTypeId, fingerprints, dictionary) {
-  const narrative = analyzeNarrative(text)
-  const agency = analyzeAgency(text)
-  const transformation = analyzeTransformation(text)
-  const specificity = analyzeSpecificity(text)
-  const insight = analyzeInsight(text)
-  const alignment = analyzeAlignment(text, essayTypeId)
   const mechanics = analyzeMechanics(text)
   const similarity = checkSimilarity(text, fingerprints)
-  const ai = detectAI(text)
-  const genericness = detectGenericness(text)
-  const ending = detectPredictableEnding(text)
-
-  // Practical checks (visible in report)
   const spelling = checkSpelling(text, dictionary)
   const repetition = checkRepetition(text)
   const overboasting = checkOverboasting(text)
   const negativeTalk = checkNegativeSelfTalk(text)
+  const totalWords = countWords(text)
 
+  /* ---- 1. SPELLING (weight 10%) ---- */
+  const spellingErrors = spelling.count
+  const spellingScore = Math.max(0, 100 - (Math.min(spellingErrors, 3) * 5) - (Math.max(0, spellingErrors - 3) * 2))
+
+  /* ---- 2. GRAMMAR (weight 15%) ---- */
+  const grammarCount = mechanics.grammarIssues.length
+  const grammarScore = Math.max(0, 100 - grammarCount * 5)
+
+  /* ---- 3. SENTENCE LENGTH (weight 10%) ---- */
+  const sentences = splitSentences(text)
+  const lengths = sentences.map(s => s.split(/\s+/).filter(w => w.length > 0).length)
+  const mean = lengths.length > 0 ? lengths.reduce((a, b) => a + b, 0) / lengths.length : 0
+  const pctOver25 = lengths.length > 0 ? lengths.filter(l => l > 25).length / lengths.length : 0
+  const pctUnder6 = lengths.length > 0 ? lengths.filter(l => l < 6).length / lengths.length : 0
+  const meanDiff = Math.abs(mean - 17.2)
+  let sentenceScore = 100
+  sentenceScore -= Math.min(30, meanDiff * 3)
+  sentenceScore -= Math.min(30, pctOver25 * 100)
+  sentenceScore -= Math.min(20, pctUnder6 * 60)
+  sentenceScore = Math.max(0, Math.round(sentenceScore))
+
+  /* ---- 4. WORD REPETITION (weight 10%) ---- */
+  const repCount = repetition.overused.length
+  const repScore = Math.max(0, 100 - repCount * 10)
+
+  /* ---- 5. "I" USAGE (weight 10%) ---- */
+  const iPer100 = repetition.iPer100
+  let iScore
+  if (iPer100 <= 4) iScore = 100
+  else if (iPer100 <= 6) iScore = 80
+  else if (iPer100 <= 9) iScore = 60
+  else iScore = 40
+
+  /* ---- 6. ORIGINALITY (weight 20%) ---- */
+  let origScore = 100
+  if (similarity.checked && similarity.matches.length > 0) {
+    const topSim = similarity.matches[0].similarity
+    if (topSim < 20) origScore = 100
+    else if (topSim < 35) origScore = 80
+    else if (topSim < 50) origScore = 60
+    else origScore = 40
+  }
+
+  /* ---- 7. NEGATIVE SELF-TALK (weight 15%) ---- */
+  const negCount = negativeTalk.count
+  let negScore = 100
+  if (negCount === 1) negScore = 90
+  else if (negCount <= 3) negScore = 80
+  else negScore = 70
+
+  /* ---- 8. OVERBOASTING (weight 10%) ---- */
+  const boastCount = overboasting.count
+  let boastScore = 100
+  if (boastCount === 1) boastScore = 90
+  else if (boastCount <= 3) boastScore = 80
+  else boastScore = 70
+
+  /* ---- WEIGHTED OVERALL ---- */
   const checks = [
-    { key: 'narrative', label: 'How well you tell your story', score: narrative.score, weight: 15 },
-    { key: 'agency', label: 'How much YOU are doing things', score: agency.score, weight: 15 },
-    { key: 'transformation', label: 'Do we see you grow or change?', score: transformation.score, weight: 20 },
-    { key: 'specificity', label: 'How real and detailed it feels', score: specificity.score, weight: 15 },
-    { key: 'insight', label: 'How deeply you reflect', score: insight.score, weight: 20 },
-    { key: 'alignment', label: 'Did you answer the question?', score: alignment.score, weight: 10 },
-    { key: 'mechanics', label: 'Grammar and sentence flow', score: mechanics.score, weight: 5 },
+    { key: 'spelling', label: 'Spelling', score: spellingScore, weight: 10 },
+    { key: 'grammar', label: 'Grammar', score: grammarScore, weight: 15 },
+    { key: 'sentenceLength', label: 'Sentence length', score: sentenceScore, weight: 10 },
+    { key: 'repetition', label: 'Word repetition', score: repScore, weight: 10 },
+    { key: 'iUsage', label: '"I" usage', score: iScore, weight: 10 },
+    { key: 'originality', label: 'Originality', score: origScore, weight: 20 },
+    { key: 'negativeTalk', label: 'Negative self-talk', score: negScore, weight: 15 },
+    { key: 'overboasting', label: 'Overboasting', score: boastScore, weight: 10 },
   ]
 
-  const overall_raw = Math.round(checks.reduce((s, c) => s + c.score * c.weight, 0) / 100)
+  const overall = Math.max(0, Math.min(100, Math.round(
+    checks.reduce((s, c) => s + c.score * c.weight, 0) / 100
+  )))
 
-  // NEW: Core/Depth/Penalty scoring model (admissions-style)
-  const coreScore = (narrative.score + specificity.score + agency.score + mechanics.score) / 4 / 100
-
-  // FIX 1: Cap alignment at 85% if no explicit stakes language
-  const cappedAlignment = Math.min(alignment.score, (/\bdefines me\b|\bshaped how i\b|\bwithout this\b|\bincomplete\b/i.test(text)) ? 100 : 85)
-  checks.find(c => c.key === 'alignment').score = cappedAlignment
-
-  const depthScore = (insight.score * 0.4 + transformation.score * 0.4 + cappedAlignment * 0.2) / 100
-  const penaltyScore = (genericness.score * 0.3 + ending.score * 0.3) / 100
-
-  let overall = Math.round(
-    (coreScore * 0.50 + depthScore * 0.35 + (1 - penaltyScore) * 0.15) * 100
-  )
-
-  // FIX 2: Depth multiplier - reward truly strong essays
-  if (insight.score > 60 && transformation.score > 60) overall = Math.min(100, overall + 5)
-
-  // FIX 3: Do not over-praise guard - shallow essays can't score too high
-  if (insight.score < 50) overall = Math.min(overall, 88)
-
-  // GUARDRAIL: Strong narrative + high specificity can never be "needs significant revision"
-  if (coreScore > 0.7 && overall < 60) overall = 65
-  if (narrative.score >= 70 && specificity.score >= 70 && overall < 55) overall = 60
-  overall = Math.max(0, Math.min(100, overall))
-
-  // Collect all flags (priority order: similarity > AI > core modules > ending > genericness)
-  const allFlags = []
-
-  // Similarity flags first
-  if (similarity.checked && similarity.matches.length > 0) {
-    const top = similarity.matches[0]
-    if (top.similarity >= 50) {
-      allFlags.push(`This essay is ${top.similarity}% similar to a previously submitted ${top.type || 'essay'}${top.college ? ' for ' + top.college : ''}. Consider making it more original.`)
-    } else if (top.similarity >= 30) {
-      allFlags.push(`Some overlap (${top.similarity}%) detected with a past ${top.type || 'essay'}${top.college ? ' for ' + top.college : ''}.`)
-    }
-  }
-
-  // AI flags
-  allFlags.push(...ai.flags)
-
-  // Core module flags (deduplicate transformation + insight overlap)
-  const transformFlags = transformation.flags
-  const insightFlags = insight.flags
-  const bothLow = transformation.score < 70 && insight.score < 70
-
-  if (bothLow && transformFlags.length > 0 && insightFlags.length > 0) {
-    // Combine into one stronger line instead of repeating
-    allFlags.push('We don\'t clearly see what changed in you. Add 1 moment where you realized something important.')
-    allFlags.push(...narrative.flags, ...agency.flags,
-      ...specificity.flags, ...alignment.flags, ...mechanics.flags)
-  } else {
-    allFlags.push(
-      ...narrative.flags, ...agency.flags, ...transformFlags,
-      ...specificity.flags, ...insightFlags, ...alignment.flags, ...mechanics.flags,
-    )
-  }
-
-  // Ending + genericness flags
-  allFlags.push(...ending.flags)
-  allFlags.push(...genericness.flags)
-
-  let essayClass = 'Balanced'
-  if (narrative.ratio < 0.3) essayClass = 'Topic-explanation (weak)'
-  else if (narrative.ratio > 0.7) essayClass = 'Story-driven'
-  else if (insight.strongCount > insight.weakCount) essayClass = 'Reflection-heavy'
-
-  // Percentile vs 6,804 past essays (normal distribution approximation, mean=58, stddev=15)
-  const zScore = (overall - 58) / 15
+  // Percentile (normal distribution, mean=62, stddev=14)
+  const zScore = (overall - 62) / 14
   const percentile = Math.min(99, Math.max(1, Math.round(
     (1 / (1 + Math.exp(-1.7 * zScore))) * 100
   )))
 
   return {
-    checks, overall, essayClass, allFlags, percentile,
-    details: { narrative, agency, transformation, specificity, insight, alignment, mechanics, similarity, ai, genericness, ending, spelling, repetition, overboasting, negativeTalk },
+    checks, overall, percentile,
+    details: {
+      spelling, mechanics, repetition, overboasting, negativeTalk, similarity,
+      sentenceStats: { mean: Math.round(mean * 10) / 10, pctOver25: Math.round(pctOver25 * 100), pctUnder6: Math.round(pctUnder6 * 100), baseline: 17.2 },
+    },
   }
 }
 
 /* ================================================================
-   COMPONENTS
+   REPORT CARD - FINAL
    ================================================================ */
-function getInterpretation(key, score) {
-  const interps = {
-    narrative: {
-      high: 'Your essay reads like a real story, not an explanation.',
-      mid: 'Good storytelling, but some parts feel more like explaining than showing.',
-      low: 'Your essay explains more than it shows. Add real scenes from your life.',
-    },
-    agency: {
-      high: 'You clearly show yourself taking action and making decisions.',
-      mid: 'Your actions are present but could stand out more.',
-      low: 'We see things happening TO you, not YOU making things happen.',
-    },
-    transformation: {
-      high: 'We clearly see how you changed and grew.',
-      mid: 'We see your journey, but not clearly what changed inside you.',
-      low: 'We don\'t clearly see what changed in you.',
-    },
-    specificity: {
-      high: 'Your essay is full of real details, names, and moments.',
-      mid: 'Some parts are vivid, others feel vague.',
-      low: 'Too abstract. Add real names, places, and moments.',
-    },
-    insight: {
-      high: 'You show genuine self-awareness and deep thinking.',
-      mid: 'You describe experiences well, but don\'t fully explain what you learned.',
-      low: 'Add moments where you questioned yourself or realized something new.',
-    },
-    alignment: {
-      high: 'You answer the question well, but could show more clearly why this matters to you.',
-      mid: 'You partly answer the question. Make the personal connection stronger.',
-      low: 'Your essay doesn\'t clearly connect to the prompt.',
-    },
-    mechanics: {
-      high: 'Clean writing with good sentence variety.',
-      mid: 'Mostly clean, with a few rough spots.',
-      low: 'Some sentences need tightening.',
-    },
-  }
-  const tier = score >= 75 ? 'high' : score >= 50 ? 'mid' : 'low'
-  return interps[key] ? interps[key][tier] : ''
-}
-
-function TriColorBar({ score, label, weight, thick, interpretation }) {
-  const pct = Math.max(0, Math.min(100, score))
+function CheckSection({ title, ok, okText, children }) {
   return (
-    <div className={'rc-row-block' + (thick ? ' rc-row-thick-block' : '')}>
-      <div className={'rc-row' + (thick ? ' rc-row-thick' : '')}>
-        <div className={'rc-lbl' + (thick ? ' rc-lbl-bold' : '')}>
-          {label}
-          {weight && !thick && <span className="rc-weight">({weight}%)</span>}
-        </div>
-        <div className={'rc-bar-wrap' + (thick ? ' rc-bar-thick' : '')}>
-          <div className="rc-zone rc-z-low" style={{ width: '33.33%' }} />
-          <div className="rc-zone rc-z-med" style={{ width: '33.34%' }} />
-          <div className="rc-zone rc-z-high" style={{ width: '33.33%' }} />
-          <div className="rc-marker" style={{ left: `${pct}%` }} />
-        </div>
-        <div className={'rc-pct' + (thick ? ' rc-pct-bold' : '')}>{pct}%</div>
+    <div className="rc-check">
+      <div className="rc-check-hdr">
+        <span className="rc-check-title">{title}</span>
+        {ok && <span className="rc-check-ok">{'\u2713'} {okText || 'Good'}</span>}
       </div>
-      {interpretation && <div className="rc-interp">{interpretation}</div>}
-    </div>
-  )
-}
-
-function Histogram({ student, baseline }) {
-  const keys = Object.keys(baseline)
-  const maxVal = Math.max(...keys.map(k => Math.max(student[k] || 0, baseline[k] || 0)), 0.01)
-  return (
-    <div className="hist-wrap">
-      <div className="hist-legend">
-        <span><span className="hist-dot hist-dot-s" /> Your essay</span>
-        <span><span className="hist-dot hist-dot-b" /> Baseline</span>
-      </div>
-      <div className="hist-chart">
-        {keys.map(k => (
-          <div className="hist-col" key={k}>
-            <div className="hist-bars">
-              <div className="hist-bar hist-bar-s" style={{ height: `${((student[k] || 0) / maxVal) * 100}%` }} />
-              <div className="hist-bar hist-bar-b" style={{ height: `${((baseline[k] || 0) / maxVal) * 100}%` }} />
-            </div>
-            <div className="hist-label">{k}</div>
-          </div>
-        ))}
-      </div>
-      <div className="hist-axis-label">Words per sentence</div>
+      {children}
     </div>
   )
 }
@@ -1178,267 +1088,137 @@ function ReportCard({ result, meta, onBack }) {
     } finally { setDownloading(false) }
   }, [result.overall, downloading, meta.college])
 
-  const { details, checks, overall, essayClass, allFlags, percentile } = result
-  const passed = overall >= 65
-  const strong = overall >= 75
-  const storyChecks = checks.slice(0, 3)
-  const contentChecks = checks.slice(3, 6)
-  const mechChecks = checks.slice(6)
+  const { checks, overall, percentile, details } = result
+  const passed = overall >= 70
 
   return (
     <div className="rc-shell" ref={reportRef}>
       <div className="rc-hdr">
         <div className="rc-hdr-l">
           <h2 className="rc-hdr-title">Essay feedback report</h2>
-          <div className="rc-hdr-sub">Boomer Counselor / Essay analysis</div>
+          <div className="rc-hdr-sub">Boomer Counselor</div>
         </div>
         <div className="rc-hdr-r">
           {meta.college && <div className="rc-hdr-nm">{meta.college}</div>}
           <div className="rc-hdr-mt">{meta.essayType}</div>
           <div className="rc-hdr-mt">{meta.wordCount} words / {new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</div>
-          <div className="rc-hdr-mt">Type: {essayClass}</div>
-          {details.similarity && details.similarity.checked && (
-            <div className="rc-hdr-mt">Compared against {details.similarity.totalCompared.toLocaleString()} past essays</div>
-          )}
         </div>
       </div>
 
       <div className="rc-body">
-        <div className="rc-legend">
-          <span><span className="rc-leg-dot" style={{ background: '#4a90d9' }} /> Low</span>
-          <span><span className="rc-leg-dot" style={{ background: '#f5a623' }} /> Medium</span>
-          <span><span className="rc-leg-dot" style={{ background: '#4caf50' }} /> High</span>
-          <span><span className="rc-leg-dot" style={{ background: '#1a1a1a' }} /> Your score</span>
-        </div>
 
-        <div className="rc-section">
-          <div className="rc-stitle">Your story</div>
-          {storyChecks.map(c => <TriColorBar key={c.key} label={c.label} score={c.score} weight={c.weight} interpretation={getInterpretation(c.key, c.score)} />)}
-        </div>
+        {/* 1. SPELLING */}
+        <CheckSection title="1. Spelling" ok={details.spelling.count === 0} okText="No errors found">
+          {details.spelling.count > 0 && details.spelling.items.map((item, i) => (
+            <div className="rc-issue" key={i}>
+              <span className="rc-wrong">"{item.word}"</span>
+              {item.suggestion ? <> {'\u2192'} <span className="rc-right">"{item.suggestion}"</span></> : ' - check spelling'}
+            </div>
+          ))}
+        </CheckSection>
 
-        <div className="rc-section">
-          <div className="rc-stitle">Your thinking</div>
-          {contentChecks.map(c => <TriColorBar key={c.key} label={c.label} score={c.score} weight={c.weight} interpretation={getInterpretation(c.key, c.score)} />)}
-        </div>
+        {/* 2. GRAMMAR */}
+        <CheckSection title="2. Grammar" ok={details.mechanics.grammarIssues.length === 0} okText="No issues found">
+          {details.mechanics.grammarIssues.length > 0 && details.mechanics.grammarIssues.slice(0, 8).map((item, i) => (
+            <div className="rc-issue" key={i}>
+              <span className="rc-issue-type">{item.type}:</span> "{item.text}"
+            </div>
+          ))}
+        </CheckSection>
 
-        <div className="rc-section">
-          <div className="rc-stitle">Writing</div>
-          {mechChecks.map(c => <TriColorBar key={c.key} label={c.label} score={c.score} weight={c.weight} interpretation={getInterpretation(c.key, c.score)} />)}
-        </div>
-
-        <div className="rc-section rc-overall-section">
-          <TriColorBar label="Overall score" score={overall} thick />
-          {percentile && (
-            <div className="rc-percentile">Top {100 - percentile}% compared to {details.similarity.totalCompared ? details.similarity.totalCompared.toLocaleString() : '6,804'} past essays</div>
-          )}
-        </div>
-
-        {/* SPELLING */}
-        <div className="rc-section">
-          <div className="rc-stitle">Spelling</div>
-          {details.spelling.count === 0
-            ? <div className="rc-strength"><span className="rc-strength-icon">{'\u2713'}</span> No spelling errors found</div>
-            : details.spelling.items.map((item, i) => (
-              <div className="rc-flag" key={i}>
-                <span className="rc-flag-icon">!</span>
-                <span style={{ color: '#c0392b', fontWeight: 700 }}>"{item.word}"</span>
-                {item.suggestion ? <> should be <span style={{ color: '#1a6e3a', fontWeight: 700 }}>"{item.suggestion}"</span></> : ' - check spelling'}
-              </div>
-            ))
-          }
-        </div>
-
-        {/* GRAMMAR */}
-        <div className="rc-section">
-          <div className="rc-stitle">Grammar</div>
-          {details.mechanics.grammarIssues.length === 0
-            ? <div className="rc-strength"><span className="rc-strength-icon">{'\u2713'}</span> No grammar issues found</div>
-            : details.mechanics.grammarIssues.slice(0, 8).map((item, i) => (
-              <div className="rc-flag" key={i}>
-                <span className="rc-flag-icon">!</span>
-                <span style={{ color: '#8a7f72', fontWeight: 500 }}>{item.type}:</span> "{item.text}"
-              </div>
-            ))
-          }
-        </div>
-
-        {/* REPETITION + I USAGE */}
-        <div className="rc-section">
-          <div className="rc-stitle">Word repetition and "I" usage</div>
-          {details.repetition.overused.length === 0 && details.repetition.iPer100 <= 5
-            ? <div className="rc-strength"><span className="rc-strength-icon">{'\u2713'}</span> Good word variety</div>
-            : <>
-              {details.repetition.overused.length > 0 && (
-                <div className="rc-flag">
-                  <span className="rc-flag-icon">!</span>
-                  Repeated words: {details.repetition.overused.map(w => `"${w.word}" (${w.count}x)`).join(', ')}
+        {/* 3. SENTENCE LENGTH */}
+        <CheckSection title="3. Sentence length" ok={details.sentenceStats.pctOver25 === 0 && Math.abs(details.sentenceStats.mean - 17.2) < 5}>
+          <div className="rc-stat">Your average: <strong>{details.sentenceStats.mean} words</strong> per sentence (database average: {details.sentenceStats.baseline})</div>
+          {details.sentenceStats.pctOver25 > 0 && <div className="rc-stat">{details.sentenceStats.pctOver25}% of your sentences are over 25 words (too long)</div>}
+          {details.sentenceStats.pctUnder6 > 15 && <div className="rc-stat">{details.sentenceStats.pctUnder6}% of your sentences are under 6 words (too short)</div>}
+          {details.mechanics.problematic.length > 0 && (
+            <>
+              <div className="rc-fix-label">Fix these sentences:</div>
+              {details.mechanics.problematic.map((s, i) => (
+                <div className="rc-sentence-fix" key={i}>
+                  <div className="rc-sentence-text">"{s.text.length > 150 ? s.text.slice(0, 147) + '...' : s.text}"</div>
+                  <div className="rc-sentence-issue">Too long ({s.words} words) - split into 2 shorter sentences</div>
                 </div>
-              )}
-              <div className="rc-flag" style={details.repetition.iPer100 > 5 ? {} : { background: '#f3efe6', borderLeftColor: '#c8bfa8' }}>
-                <span className="rc-flag-icon" style={details.repetition.iPer100 > 5 ? {} : { background: '#c8bfa8' }}>i</span>
-                "I" appears {details.repetition.iCount}x, "my" {details.repetition.myCount}x, "me" {details.repetition.meCount}x ({details.repetition.firstPersonTotal} total in {details.repetition.totalWords} words)
-                {details.repetition.iPer100 > 5 && ' - try starting more sentences with actions instead of "I"'}
-              </div>
-            </>
-          }
-        </div>
-
-        {/* NEGATIVE SELF-TALK */}
-        {details.negativeTalk.count > 0 && (
-          <div className="rc-section">
-            <div className="rc-stitle">Negative self-talk</div>
-            {details.negativeTalk.items.slice(0, 5).map((item, i) => (
-              <div className="rc-flag" key={i}>
-                <span className="rc-flag-icon">!</span>
-                "{item}" - reframe this as growth or learning, not self-criticism
-              </div>
-            ))}
-          </div>
-        )}
-
-        {/* OVERBOASTING */}
-        {details.overboasting.count > 0 && (
-          <div className="rc-section">
-            <div className="rc-stitle">Overboasting</div>
-            {details.overboasting.items.slice(0, 5).map((item, i) => (
-              <div className="rc-flag" key={i}>
-                <span className="rc-flag-icon">!</span>
-                "{item}" - show this through actions, not claims
-              </div>
-            ))}
-          </div>
-        )}
-
-        {/* READABILITY */}
-        <div className="rc-section">
-          <div className="rc-stitle">Are your sentences easy to read?</div>
-          <div className="rc-readability">
-            <span className={'rc-read-badge rc-read-' + details.mechanics.readability}>
-              {details.mechanics.readability === 'good' ? 'Yes' : details.mechanics.readability === 'mostly_good' ? 'Mostly yes' : 'Needs work'}
-            </span>
-            <span className="rc-read-detail">
-              {details.mechanics.goodCount} good, {details.mechanics.longCount} too long{details.mechanics.shortCount > 3 ? `, ${details.mechanics.shortCount} very short` : ''}
-            </span>
-          </div>
-        </div>
-
-        {/* FIX THESE SENTENCES */}
-        {details.mechanics.problematic.length > 0 && (
-          <div className="rc-section">
-            <div className="rc-stitle">Fix these sentences</div>
-            {details.mechanics.problematic.map((s, i) => (
-              <div className="rc-sentence-fix" key={i}>
-                <div className="rc-sentence-text">"{s.text.length > 150 ? s.text.slice(0, 147) + '...' : s.text}"</div>
-                <div className="rc-sentence-issue">Too long ({s.words} words) - try splitting into 2 sentences</div>
-              </div>
-            ))}
-          </div>
-        )}
-
-        {/* WHAT WORKS WELL */}
-        {(() => {
-          const strengths = []
-          if (details.narrative.score >= 70) strengths.push('Your essay reads like a real story, not a school assignment')
-          if (details.agency.score >= 70) strengths.push('You clearly show yourself taking action')
-          if (details.specificity.score >= 70) strengths.push('Full of real details that make it memorable')
-          if (details.transformation.score >= 70) strengths.push('We can see how you grew and changed')
-          if (details.insight.score >= 70) strengths.push('You show genuine self-awareness')
-          if (details.alignment.score >= 70) strengths.push('You answer the prompt well')
-          if (details.mechanics.score >= 70) strengths.push('Clean, well-written prose')
-          return strengths.length > 0 ? (
-            <div className="rc-section">
-              <div className="rc-stitle">What works well</div>
-              {strengths.map((s, i) => (
-                <div className="rc-strength" key={i}><span className="rc-strength-icon">{'\u2713'}</span> {s}</div>
               ))}
-            </div>
-          ) : null
-        })()}
+            </>
+          )}
+        </CheckSection>
 
-        {/* WHAT TO FIX FIRST */}
-        {(() => {
-          const sortedChecks = [...checks].sort((a, b) => a.score - b.score)
-          const weakest = sortedChecks[0]
-          if (!weakest || weakest.score >= 75) return null
-          const priorityMessages = {
-            narrative: 'Add more real scenes from your life instead of explaining ideas.',
-            agency: 'Show more moments where YOU made a decision or took action.',
-            transformation: 'Add 1 moment where you realized something important or changed your mind.',
-            specificity: 'Replace vague statements with real names, places, and details.',
-            insight: 'Add 1 moment where you questioned yourself or saw things differently.',
-            alignment: 'Make it clearer why this topic matters to YOU personally.',
-            mechanics: 'Break up long sentences and vary your sentence length.',
-          }
-          return (
-            <div className="rc-section">
-              <div className="rc-stitle">What to fix first</div>
-              <div className="rc-priority">
-                <span className="rc-priority-label">{weakest.label}</span>
-                <span className="rc-priority-msg">{priorityMessages[weakest.key] || 'Strengthen this area for the biggest score improvement.'}</span>
+        {/* 4. WORD REPETITION */}
+        <CheckSection title="4. Word repetition" ok={details.repetition.overused.length === 0} okText="Good variety">
+          {details.repetition.overused.length > 0 && details.repetition.overused.map((w, i) => (
+            <div className="rc-issue" key={i}>
+              <span className="rc-wrong">"{w.word}"</span> used <strong>{w.count} times</strong> - try using different words
+            </div>
+          ))}
+        </CheckSection>
+
+        {/* 5. "I" USAGE */}
+        <CheckSection title={'5. "I" usage'} ok={details.repetition.iPer100 <= 4}>
+          <div className="rc-stat">
+            "I" appears {details.repetition.iCount}x, "my" {details.repetition.myCount}x, "me" {details.repetition.meCount}x
+            ({details.repetition.firstPersonTotal} total in {details.repetition.totalWords} words = {details.repetition.iPer100.toFixed(1)} "I"s per 100 words)
+          </div>
+          <div className="rc-stat">Database average: 2.25 "I"s per 100 words</div>
+          {details.repetition.iPer100 > 4 && <div className="rc-suggestion">Try starting more sentences with actions or observations instead of "I"</div>}
+        </CheckSection>
+
+        {/* 6. ORIGINALITY */}
+        <CheckSection title="6. Originality" ok={!details.similarity.checked || details.similarity.matches.length === 0 || details.similarity.matches[0].similarity < 20} okText={details.similarity.checked ? `Original (compared against ${details.similarity.totalCompared.toLocaleString()} past essays)` : 'Checking...'}>
+          {details.similarity.checked && details.similarity.matches.length > 0 && details.similarity.matches[0].similarity >= 20 && (
+            <>
+              <div className="rc-issue">
+                {details.similarity.matches[0].similarity}% similar to a previously submitted {details.similarity.matches[0].type || 'essay'}
+                {details.similarity.matches[0].college ? ` for ${details.similarity.matches[0].college}` : ''}
               </div>
-            </div>
-          )
-        })()}
+              <div className="rc-suggestion">Make your essay more unique. Use your own specific experiences and details.</div>
+            </>
+          )}
+        </CheckSection>
 
-        {/* OTHER FEEDBACK */}
-        {allFlags.length > 0 && (
-          <div className="rc-section">
-            <div className="rc-stitle">Other feedback</div>
-            {allFlags.map((f, i) => (
-              <div className="rc-flag" key={i}><span className="rc-flag-icon">!</span> {f}</div>
-            ))}
-          </div>
-        )}
+        {/* 7. NEGATIVE SELF-TALK */}
+        <CheckSection title="7. Negative self-talk" ok={details.negativeTalk.count === 0} okText="None detected">
+          {details.negativeTalk.count > 0 && (
+            <>
+              {details.negativeTalk.items.slice(0, 5).map((item, i) => (
+                <div className="rc-issue" key={i}><span className="rc-wrong">"{item}"</span></div>
+              ))}
+              <div className="rc-suggestion">Reframe these as growth or learning moments. Show what you overcame, not how you felt defeated.</div>
+            </>
+          )}
+        </CheckSection>
 
-        {/* CONCLUSION - always constructive */}
-        <div className="rc-conclusion">
-          <div className="rc-conclusion-body">
-            {(() => {
-              // Always find something positive
-              const positives = []
-              if (details.narrative.score >= 70) positives.push('Your storytelling is strong')
-              if (details.agency.score >= 70) positives.push('you show clear personal action')
-              if (details.specificity.score >= 70) positives.push('your details are vivid and real')
-              if (details.transformation.score >= 70) positives.push('we can see genuine growth')
-              if (details.insight.score >= 70) positives.push('your reflection shows self-awareness')
-              if (details.alignment.score >= 70) positives.push('you answer the prompt well')
-              if (details.mechanics.score >= 70) positives.push('your writing flows well')
-              if (positives.length === 0) positives.push('You have a story worth telling')
+        {/* 8. OVERBOASTING */}
+        <CheckSection title="8. Overboasting" ok={details.overboasting.count === 0} okText="Balanced tone">
+          {details.overboasting.count > 0 && (
+            <>
+              {details.overboasting.items.slice(0, 5).map((item, i) => (
+                <div className="rc-issue" key={i}><span className="rc-wrong">"{item}"</span></div>
+              ))}
+              <div className="rc-suggestion">Let your actions speak for themselves. Show achievements through specific examples, not claims.</div>
+            </>
+          )}
+        </CheckSection>
 
-              // Find the most impactful thing to improve
-              const sorted = [...checks].sort((a, b) => a.score - b.score)
-              const weakest = sorted[0]
-              const improveSuggestions = {
-                narrative: 'show more real scenes from your life instead of explaining ideas',
-                agency: 'put yourself at the center, show the decisions YOU made',
-                transformation: 'add a moment where something clicked or you saw things differently',
-                specificity: 'replace general statements with specific names, places, and moments',
-                insight: 'go deeper, what did this experience actually teach you about yourself?',
-                alignment: 'connect your story more clearly to what the prompt is asking',
-                mechanics: 'tighten your sentences and vary their length',
-              }
+        {/* OVERALL SCORE */}
+        <div className="rc-overall-box">
+          <div className="rc-overall-score">{overall}<span className="rc-overall-of">/100</span></div>
+          <div className="rc-overall-percentile">Top {100 - percentile}% compared to {details.similarity.totalCompared ? details.similarity.totalCompared.toLocaleString() : '6,804'} past essays</div>
+        </div>
 
-              const posText = positives.length >= 3
-                ? `${positives.slice(0, 2).join(', ')}, and ${positives[2]}`
-                : positives.join(' and ')
-
-              return (
-                <>
-                  <div className="rc-conclusion-positive">{posText.charAt(0).toUpperCase() + posText.slice(1)}.</div>
-                  {weakest && weakest.score < 75 && (
-                    <div className="rc-conclusion-improve">To take it further: {improveSuggestions[weakest.key] || 'strengthen the weakest area above'}.</div>
-                  )}
-                  <div className="rc-conclusion-verdict">
-                    {strong
-                      ? 'This is a strong essay. A counselor can help you with the final polish.'
-                      : passed
-                        ? 'Good foundation. One or two targeted revisions will make a real difference.'
-                        : 'There is potential here. Focus on the suggestion above, revise, and re-analyze.'}
-                  </div>
-                </>
-              )
-            })()}
-          </div>
+        {/* VERDICT */}
+        <div className={'rc-verdict ' + (passed ? 'rc-verdict-pass' : 'rc-verdict-rewrite')}>
+          {passed ? (
+            <>
+              <div className="rc-verdict-icon">{'\u2713'}</div>
+              <div className="rc-verdict-text">You can show this essay to your counselor.</div>
+            </>
+          ) : (
+            <>
+              <div className="rc-verdict-icon">{'\u270F'}</div>
+              <div className="rc-verdict-text">Go back, rewrite your essay using the suggestions above, and come back to re-analyze.</div>
+            </>
+          )}
         </div>
 
         <div className="rc-actions no-print">
@@ -1488,7 +1268,7 @@ export default function App() {
       const res = runAllChecks(essay, typeObj ? typeObj.id : 'commonapp', fingerprints, dictionary)
       setResult(res)
       setAnalyzing(false)
-      emitEvent('report_generated', { action: 'analyze', extraData: { overall: res.overall, essayClass: res.essayClass, scores: Object.fromEntries(res.checks.map(c => [c.key, c.score])) } })
+      emitEvent('report_generated', { action: 'analyze', extraData: { overall: res.overall, scores: Object.fromEntries(res.checks.map(c => [c.key, c.score])) } })
     }, 150)
   }
 
