@@ -1118,7 +1118,7 @@ function ReportCard({ result, meta, onBack }) {
   }, [result.overall, downloading, meta.college])
 
   const { checks, overall, percentile, details } = result
-  const passed = overall >= 70
+  const passed = overall >= 75
 
   return (
     <div className="rc-shell" ref={reportRef}>
