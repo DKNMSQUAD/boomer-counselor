@@ -168,12 +168,8 @@ Every user action writes to TWO Google Sheets in real time:
 
 ## PENDING TASKS
 
-### CRITICAL: Deploy Apps Script tutor-counselor analytics fix
-The `updateTutorSession` function in `apps-script.gs` (commit e8f0115) uses `getOrCreateSession` helper but has NOT been deployed as a new Apps Script version. Must inject into Apps Script editor and deploy as new version (>9).
-
-Root cause of bug: old code compared string `'now'` with Date via subtraction = NaN. The fix uses `getOrCreateSession()` helper (same as the other 3 working tools).
-
-Apps Script project ID: `16IgPxqH1NZ4cciuvwVSPpBFj7INKxkcB5EI4G9A8Jm5LU-MUbMJ2J3Av`
+Apps Script deploys via clasp now (see `reference_boomer_counselor_clasp.md` memory).
+Current production deployment: @17 (v3.3, Apr 30 2026).
 
 ### Essay Feedback tool (next to build)
 Currently shows as "Soon" in the hub dropdown. Needs data source (Google Sheet), UI (same pattern as Profile Builder / Tutor & Counselor Search), and analytics integration.
@@ -182,6 +178,5 @@ Currently shows as "Soon" in the hub dropdown. Needs data source (Google Sheet),
 Currently shows as "Soon" in the hub dropdown.
 
 ### Other pending items
-- Fix phone #ERROR! in Listing Requests sheet (prefix with apostrophe)
 - Career Discovery UI spacing fix (match College Search compactness)
 - Full visual parity check across all tools
