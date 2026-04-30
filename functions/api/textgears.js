@@ -16,16 +16,20 @@ export async function onRequestPost(context) {
   }
 
   const { text, language = 'en-US' } = body
+  const url = new URL(request.url)
+  const debug = url.searchParams.get('debug') === '1'
 
   if (!text || text.trim().length < 5) {
     return jsonResponse({ spelling: [], grammar: [], ok: true })
   }
 
   const formData = new URLSearchParams()
-  formData.append('text', text.slice(0, 3000)) // free tier limit
+  formData.append('text', text.slice(0, 3000))
   formData.append('language', language)
 
   let tgData
+  let tgStatus
+  let rawText
   try {
     const tgRes = await fetch('https://textgears-textgears-v1.p.rapidapi.com/grammar', {
       method: 'POST',
@@ -36,7 +40,13 @@ export async function onRequestPost(context) {
       },
       body: formData.toString(),
     })
-    tgData = await tgRes.json()
+    tgStatus = tgRes.status
+    rawText = await tgRes.text()
+    try {
+      tgData = JSON.parse(rawText)
+    } catch {
+      tgData = null
+    }
   } catch (err) {
     return jsonResponse({ error: 'TextGears request failed', detail: String(err) }, 502)
   }
@@ -44,7 +54,7 @@ export async function onRequestPost(context) {
   const spelling = []
   const grammar = []
 
-  if (tgData.response && Array.isArray(tgData.response.errors)) {
+  if (tgData && tgData.response && Array.isArray(tgData.response.errors)) {
     for (const err of tgData.response.errors) {
       const item = {
         bad: err.bad || '',
@@ -59,11 +69,21 @@ export async function onRequestPost(context) {
     }
   }
 
-  return jsonResponse({
+  const result = {
     spelling,
     grammar,
-    ok: tgData.response?.result ?? true,
-  })
+    ok: tgData?.response?.result ?? true,
+  }
+
+  if (debug) {
+    result._debug = {
+      tgStatus,
+      tgRaw: rawText?.slice(0, 800),
+      tgParsed: tgData,
+    }
+  }
+
+  return jsonResponse(result)
 }
 
 export async function onRequestOptions() {
