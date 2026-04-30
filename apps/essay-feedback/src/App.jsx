@@ -1004,8 +1004,8 @@ function runAllChecks(text, essayTypeId, fingerprints, dictionary) {
   // 1. SPELLING: -2 per error, max -6
   score -= Math.min(spelling.count * 2, 6)
 
-  // 2. GRAMMAR: -1 per error, max -6
-  score -= Math.min(mechanics.grammarIssues.length, 6)
+  // 2. GRAMMAR: -1 per error, max -6, but 5+ issues = forced max
+  score -= mechanics.grammarIssues.length >= 5 ? 6 : Math.min(mechanics.grammarIssues.length, 6)
 
   // 3. SENTENCE LENGTH
   if (longRatio > 0.35) score -= 3
@@ -1020,10 +1020,19 @@ function runAllChecks(text, essayTypeId, fingerprints, dictionary) {
   else if (iPer100 > 10) score -= 4
   else if (iPer100 > 8) score -= 2
 
-  // 6. ORIGINALITY
+  // 6. ORIGINALITY + genericness fallback
   if (topSim > 50) score -= 15
   else if (topSim > 35) score -= 8
   else if (topSim > 20) score -= 3
+  else {
+    // Original but generic? Still penalize
+    const genericPhrases = ['this taught me','i learned the importance','this experience changed me',
+      'it made me who i am','i grew as a person','this helped me grow','i became a better person',
+      'it opened my eyes','this shaped my perspective','this made me realize']
+    const lower = text.toLowerCase()
+    const genericCount = genericPhrases.filter(p => lower.includes(p)).length
+    if (genericCount >= 2) score -= 3
+  }
 
   // 7. NEGATIVE SELF-TALK: -2 per instance, max -6
   score -= Math.min(negativeTalk.count * 2, 6)
@@ -1046,7 +1055,7 @@ function runAllChecks(text, essayTypeId, fingerprints, dictionary) {
   // Build checks array for display (individual scores not used for overall, just for reference)
   const checks = [
     { key: 'spelling', label: 'Spelling', penalty: Math.min(spelling.count * 2, 6) },
-    { key: 'grammar', label: 'Grammar', penalty: Math.min(mechanics.grammarIssues.length, 6) },
+    { key: 'grammar', label: 'Grammar', penalty: mechanics.grammarIssues.length >= 5 ? 6 : Math.min(mechanics.grammarIssues.length, 6) },
     { key: 'sentenceLength', label: 'Sentence length', penalty: longRatio > 0.35 ? 3 : longRatio > 0.25 ? 2 : 0 },
     { key: 'repetition', label: 'Word repetition', penalty: Math.min(repetition.overused.length * 2, 6) },
     { key: 'iUsage', label: '"I" usage', penalty: iPer100 > 12 ? 6 : iPer100 > 10 ? 4 : iPer100 > 8 ? 2 : 0 },
