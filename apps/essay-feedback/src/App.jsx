@@ -614,14 +614,28 @@ function analyzeMechanics(text) {
   const grammarScore = Math.max(0, 100 - grammarIssues.length * 5)
   const score = Math.round((lengthScore + grammarScore) / 2)
 
-  const longSentences = sentences.filter((_, i) => lengths[i] > 30).length
+  const longSentenceCount = sentences.filter((_, i) => lengths[i] > 25).length
+
+  // Return actual problematic sentences (top 5 longest) for "Fix these sentences"
+  const problematic = sentences
+    .map((s, i) => ({ text: s, words: lengths[i], idx: i }))
+    .filter(s => s.words > 25)
+    .sort((a, b) => b.words - a.words)
+    .slice(0, 5)
+
+  // Simple readability verdict
+  const shortCount = lengths.filter(l => l <= 5).length
+  const goodCount = lengths.filter(l => l > 5 && l <= 25).length
+  const longCount = lengths.filter(l => l > 25).length
+  let readability = 'good'
+  if (longCount > sentences.length * 0.3) readability = 'hard'
+  else if (longCount > 0) readability = 'mostly_good'
 
   const flags = []
-  if (mean > 20) flags.push(`Average sentence: ${Math.round(mean)} words (baseline: ${BASELINE_SENTENCE_LENGTH.mean}). Sentences run long.`)
-  if (longSentences > 0) flags.push(`${longSentences} sentence(s) over 30 words.`)
-  if (grammarIssues.length > 3) flags.push(`${grammarIssues.length} grammar issues detected.`)
+  if (mean > 22) flags.push('Your sentences tend to run long. Try making some shorter.')
+  if (longCount > 0) flags.push(`${longCount} sentence(s) are hard to read. See below.`)
 
-  return { score: Math.min(100, Math.max(0, score)), mean, stdDev, histogram, grammarIssues, longSentences, flags }
+  return { score: Math.min(100, Math.max(0, score)), mean, stdDev, histogram, grammarIssues, longSentences: longSentenceCount, problematic, readability, shortCount, goodCount, longCount, flags }
 }
 
 /* ================================================================
@@ -1044,10 +1058,31 @@ function ReportCard({ result, meta, onBack }) {
 
         <div className="rc-section">
           <div className="rc-stitle">Are your sentences easy to read?</div>
-          <Histogram student={details.mechanics.histogram} baseline={{ '1-5': 0.1142, '6-10': 0.1734, '11-15': 0.2071, '16-20': 0.1889, '21-25': 0.1340, '26-30': 0.0813, '31+': 0.1012 }} />
-          {details.mechanics.mean > 20 && <div className="rc-interp" style={{ marginTop: 6 }}>Your sentences are a bit long on average. Try breaking some up.</div>}
-          {details.mechanics.longSentences > 0 && <div className="rc-interp" style={{ marginTop: 4 }}>{details.mechanics.longSentences} sentence(s) are too long and hard to read.</div>}
+          <div className="rc-readability">
+            <span className={'rc-read-badge rc-read-' + details.mechanics.readability}>
+              {details.mechanics.readability === 'good' ? 'Yes' : details.mechanics.readability === 'mostly_good' ? 'Mostly yes' : 'Needs work'}
+            </span>
+            <span className="rc-read-detail">
+              {details.mechanics.goodCount} good, {details.mechanics.longCount} too long{details.mechanics.shortCount > 3 ? `, ${details.mechanics.shortCount} very short` : ''}
+            </span>
+          </div>
+          {details.mechanics.longCount > 0 && (
+            <div className="rc-read-tip">Try breaking long sentences into smaller ones for better readability.</div>
+          )}
         </div>
+
+        {details.mechanics.problematic.length > 0 && (
+          <div className="rc-section">
+            <div className="rc-stitle">Fix these sentences</div>
+            <div className="rc-read-tip" style={{ marginBottom: 8 }}>These are the hardest to read in your essay:</div>
+            {details.mechanics.problematic.map((s, i) => (
+              <div className="rc-sentence-fix" key={i}>
+                <div className="rc-sentence-text">"{s.text.length > 150 ? s.text.slice(0, 147) + '...' : s.text}"</div>
+                <div className="rc-sentence-issue">Too long ({s.words} words) - try splitting into 2 sentences</div>
+              </div>
+            ))}
+          </div>
+        )}
 
         {/* WHAT WORKS WELL */}
         {(() => {

@@ -497,6 +497,47 @@ button { cursor: pointer; font-family: inherit; }
   line-height: 1.5;
 }
 
+/* Readability verdict */
+.rc-readability {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 6px 0;
+}
+.rc-read-badge {
+  font-size: 12px;
+  font-weight: 700;
+  padding: 4px 12px;
+  border-radius: 3px;
+}
+.rc-read-good { background: #e8f5e9; color: #1a6e3a; }
+.rc-read-mostly_good { background: #fff3e0; color: #e65100; }
+.rc-read-hard { background: #fde8e8; color: #c0392b; }
+.rc-read-detail { font-size: 11px; color: #8a7f72; }
+.rc-read-tip { font-size: 11px; color: #5a5347; line-height: 1.5; font-style: italic; }
+
+/* Fix these sentences */
+.rc-sentence-fix {
+  padding: 8px 12px;
+  margin-bottom: 6px;
+  background: #faf7f2;
+  border: 1px solid #d6cfc0;
+  border-radius: 3px;
+}
+.rc-sentence-fix:last-child { margin-bottom: 0; }
+.rc-sentence-text {
+  font-size: 11px;
+  color: #1a1a1a;
+  line-height: 1.5;
+  margin-bottom: 4px;
+  font-style: italic;
+}
+.rc-sentence-issue {
+  font-size: 10px;
+  color: #c0392b;
+  font-weight: 700;
+}
+
 /* Conclusion */
 .rc-conclusion {
   margin-top: 18px;
