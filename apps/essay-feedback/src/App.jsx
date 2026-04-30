@@ -982,9 +982,54 @@ function ReportCard({ result, meta, onBack }) {
           <Histogram student={details.mechanics.histogram} baseline={{ '1-5': 0.1142, '6-10': 0.1734, '11-15': 0.2071, '16-20': 0.1889, '21-25': 0.1340, '26-30': 0.0813, '31+': 0.1012 }} />
         </div>
 
+        {/* WHAT WORKS WELL */}
+        {(() => {
+          const strengths = []
+          if (details.narrative.score >= 70) strengths.push('Strong narrative voice with lived experience')
+          if (details.agency.score >= 70) strengths.push('Clear personal agency throughout')
+          if (details.specificity.score >= 70) strengths.push('Rich in specific details and concrete moments')
+          if (details.transformation.score >= 70) strengths.push('Clear transformation arc showing growth')
+          if (details.insight.score >= 70) strengths.push('Meaningful self-reflection')
+          if (details.alignment.score >= 70) strengths.push('Strong alignment with the essay prompt')
+          if (details.mechanics.score >= 70) strengths.push('Clean, well-structured writing')
+          return strengths.length > 0 ? (
+            <div className="rc-section">
+              <div className="rc-stitle">What works well</div>
+              {strengths.map((s, i) => (
+                <div className="rc-strength" key={i}><span className="rc-strength-icon">{'\u2713'}</span> {s}</div>
+              ))}
+            </div>
+          ) : null
+        })()}
+
+        {/* TOP PRIORITY FIX */}
+        {(() => {
+          const sortedChecks = [...checks].sort((a, b) => a.score - b.score)
+          const weakest = sortedChecks[0]
+          if (!weakest || weakest.score >= 75) return null
+          const priorityMessages = {
+            narrative: 'Add more personal stories and specific scenes from your life.',
+            agency: 'Make your actions and decisions more prominent. Lead with what YOU did.',
+            transformation: 'Show a clear internal shift. Add a moment where your thinking changed.',
+            specificity: 'Replace abstract statements with named people, places, and events.',
+            insight: 'Add a moment of genuine self-questioning or changed belief.',
+            alignment: 'Connect your topic more explicitly to your identity and personal significance.',
+            mechanics: 'Review sentence structure and vary your sentence lengths.',
+          }
+          return (
+            <div className="rc-section">
+              <div className="rc-stitle">Top priority fix</div>
+              <div className="rc-priority">
+                <span className="rc-priority-label">{weakest.label} ({weakest.score}%)</span>
+                <span className="rc-priority-msg">{priorityMessages[weakest.key] || 'Strengthen this area for the biggest score improvement.'}</span>
+              </div>
+            </div>
+          )
+        })()}
+
         {allFlags.length > 0 && (
           <div className="rc-section">
-            <div className="rc-stitle">Diagnostic flags</div>
+            <div className="rc-stitle">Other feedback</div>
             {allFlags.map((f, i) => (
               <div className="rc-flag" key={i}><span className="rc-flag-icon">!</span> {f}</div>
             ))}
