@@ -19,9 +19,8 @@ function countWords(text) {
 export default function App() {
   const [essayType, setEssayType] = useState('')
   const [college, setCollege] = useState('')
-  const [prompt, setPrompt] = useState('')
+  const [question, setQuestion] = useState('')
   const [limit, setLimit] = useState('')
-  const [unit, setUnit] = useState('words')
   const [essay, setEssay] = useState('')
   const [submitted, setSubmitted] = useState(false)
   const debounceRef = useRef(null)
@@ -30,8 +29,7 @@ export default function App() {
   const charCount = essay.length
 
   const limitNum = parseInt(limit, 10)
-  const currentForLimit = unit === 'words' ? wordCount : charCount
-  const isOver = Number.isFinite(limitNum) && limitNum > 0 && currentForLimit > limitNum
+  const isOver = Number.isFinite(limitNum) && limitNum > 0 && wordCount > limitNum
 
   useEffect(() => {
     if (!essay) return
@@ -49,7 +47,7 @@ export default function App() {
     return () => { if (debounceRef.current) clearTimeout(debounceRef.current) }
   }, [essay, wordCount, charCount, essayType])
 
-  const canSubmit = essayType && college.trim() && prompt.trim() && essay.trim() && limit
+  const canSubmit = essayType && limit && essay.trim()
 
   function handleSubmit(e) {
     e.preventDefault()
@@ -60,9 +58,8 @@ export default function App() {
       extraData: {
         essay_type: essayType,
         college: college.trim(),
-        prompt: prompt.trim(),
-        limit: limitNum,
-        unit,
+        question: question.trim(),
+        limit_words: limitNum,
         word_count: wordCount,
         char_count: charCount,
         over_limit: isOver,
@@ -110,43 +107,32 @@ export default function App() {
                   placeholder='e.g. Stanford University'
                   value={college}
                   onChange={e => setCollege(e.target.value)}
-                  required
                 />
               </div>
               <div>
-                <label className='ef-label'>Maximum length</label>
-                <div className='ef-row-limit'>
-                  <input
-                    className='ef-input'
-                    type='number'
-                    min='1'
-                    placeholder='e.g. 650'
-                    value={limit}
-                    onChange={e => setLimit(e.target.value)}
-                    required
-                  />
-                  <select
-                    className='ef-select'
-                    value={unit}
-                    onChange={e => setUnit(e.target.value)}
-                  >
-                    <option value='words'>Words</option>
-                    <option value='characters'>Characters</option>
-                  </select>
-                </div>
+                <label className='ef-label' htmlFor='ef-limit'>Maximum length (words)</label>
+                <input
+                  id='ef-limit'
+                  className='ef-input'
+                  type='number'
+                  min='1'
+                  placeholder='e.g. 650'
+                  value={limit}
+                  onChange={e => setLimit(e.target.value)}
+                  required
+                />
               </div>
             </div>
           </div>
 
           <div className='ef-field'>
-            <label className='ef-label' htmlFor='ef-prompt'>Essay prompt</label>
+            <label className='ef-label' htmlFor='ef-question'>Essay question</label>
             <textarea
-              id='ef-prompt'
+              id='ef-question'
               className='ef-textarea ef-textarea-prompt'
-              placeholder='Paste the exact prompt you are answering...'
-              value={prompt}
-              onChange={e => setPrompt(e.target.value)}
-              required
+              placeholder='Paste the exact question you are answering...'
+              value={question}
+              onChange={e => setQuestion(e.target.value)}
             />
           </div>
 
@@ -161,8 +147,8 @@ export default function App() {
               required
             />
             <div className={'ef-meter' + (isOver ? ' is-over' : '')}>
-              <span>Words: <strong>{wordCount.toLocaleString()}</strong>{unit === 'words' && limitNum ? ` / ${limitNum.toLocaleString()}` : ''}</span>
-              <span>Characters: <strong>{charCount.toLocaleString()}</strong>{unit === 'characters' && limitNum ? ` / ${limitNum.toLocaleString()}` : ''}</span>
+              <span>Words: <strong>{wordCount.toLocaleString()}</strong>{limitNum ? ` / ${limitNum.toLocaleString()}` : ''}</span>
+              <span>Characters: <strong>{charCount.toLocaleString()}</strong></span>
               {isOver && <span>Over limit</span>}
             </div>
           </div>
