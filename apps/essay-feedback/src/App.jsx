@@ -624,6 +624,18 @@ function analyzeMechanics(text) {
   // "it make me" type errors (missing -s or wrong tense)
   const missingS = [...text.matchAll(/\b(it|he|she|this|that)\s+(make|give|take|come|go|have|do|say|get|know|think|find|tell|become|show|feel)\s/gi)]
   grammarIssues.push(...missingS.map(m => ({ type: 'Missing verb ending', text: m[0].trim() })))
+  // "are i am" / "is i am" jumbled phrasing
+  const jumbled = [...text.matchAll(/\b(are|is|was|were)\s+i\s+(am|is|are|was)\b/gi)]
+  grammarIssues.push(...jumbled.map(m => ({ type: 'Awkward phrasing', text: m[0] })))
+  // "I doesnt" / "I doesn't" / "I goes" / "I makes"
+  const wrongVerb = [...text.matchAll(/\bI\s+(goes|makes|does|doesn't|comes|takes|gives|says|gets|runs|puts|sits|stands|plays)\b/g)]
+  grammarIssues.push(...wrongVerb.map(m => ({ type: 'Wrong verb form', text: m[0] })))
+  // "more better" / "most best" / "more faster"
+  const doubleComp = [...text.matchAll(/\b(more|most)\s+(better|best|worse|worst|faster|slower|bigger|smaller|easier|harder)\b/gi)]
+  grammarIssues.push(...doubleComp.map(m => ({ type: 'Double comparative', text: m[0] })))
+  // "alot" as one word (grammar, not just spelling)
+  const alot = [...text.matchAll(/\balot\b/gi)]
+  grammarIssues.push(...alot.map(m => ({ type: 'Should be two words', text: 'alot -> a lot' })))
 
   // Score (lenient, only 5% weight)
   const cvDiff = mean > 0 ? Math.abs((stdDev / mean) - (BASELINE_SENTENCE_LENGTH.stdDev / BASELINE_SENTENCE_LENGTH.mean)) : 0
@@ -971,87 +983,83 @@ function runAllChecks(text, essayTypeId, fingerprints, dictionary) {
   const repetition = checkRepetition(text)
   const overboasting = checkOverboasting(text)
   const negativeTalk = checkNegativeSelfTalk(text)
-  const totalWords = countWords(text)
 
-  /* ---- 1. SPELLING (weight 10%) ---- */
-  const spellingErrors = spelling.count
-  const spellingScore = Math.max(0, 100 - (Math.min(spellingErrors, 3) * 5) - (Math.max(0, spellingErrors - 3) * 2))
-
-  /* ---- 2. GRAMMAR (weight 15%) ---- */
-  const grammarCount = mechanics.grammarIssues.length
-  const grammarScore = Math.max(0, 100 - grammarCount * 5)
-
-  /* ---- 3. SENTENCE LENGTH (weight 10%) ---- */
+  // Sentence stats
   const sentences = splitSentences(text)
   const lengths = sentences.map(s => s.split(/\s+/).filter(w => w.length > 0).length)
   const mean = lengths.length > 0 ? lengths.reduce((a, b) => a + b, 0) / lengths.length : 0
-  const pctOver25 = lengths.length > 0 ? lengths.filter(l => l > 25).length / lengths.length : 0
-  const pctUnder6 = lengths.length > 0 ? lengths.filter(l => l < 6).length / lengths.length : 0
-  const meanDiff = Math.abs(mean - 17.2)
-  let sentenceScore = 100
-  sentenceScore -= Math.min(30, meanDiff * 3)
-  sentenceScore -= Math.min(30, pctOver25 * 100)
-  sentenceScore -= Math.min(20, pctUnder6 * 60)
-  sentenceScore = Math.max(0, Math.round(sentenceScore))
+  const longRatio = lengths.length > 0 ? lengths.filter(l => l > 25).length / lengths.length : 0
+  const shortRatio = lengths.length > 0 ? lengths.filter(l => l < 6).length / lengths.length : 0
 
-  /* ---- 4. WORD REPETITION (weight 10%) ---- */
-  const repCount = repetition.overused.length
-  const repScore = Math.max(0, 100 - repCount * 10)
+  // Similarity top match
+  const topSim = (similarity.checked && similarity.matches.length > 0) ? similarity.matches[0].similarity : 0
 
-  /* ---- 5. "I" USAGE (weight 10%) ---- */
+  /* ============================================
+     FINAL SCORING: start at 100, subtract penalties
+     Calibrated: test essay (many issues) = 68-72
+     Clean essay = 95-100, weak essay = 50-65
+     ============================================ */
+  let score = 100
+
+  // 1. SPELLING: -2 per error, max -6
+  score -= Math.min(spelling.count * 2, 6)
+
+  // 2. GRAMMAR: -1 per error, max -6
+  score -= Math.min(mechanics.grammarIssues.length, 6)
+
+  // 3. SENTENCE LENGTH
+  if (longRatio > 0.35) score -= 3
+  else if (longRatio > 0.25) score -= 2
+
+  // 4. WORD REPETITION: -2 per repeated word, max -6
+  score -= Math.min(repetition.overused.length * 2, 6)
+
+  // 5. "I" USAGE
   const iPer100 = repetition.iPer100
-  let iScore
-  if (iPer100 <= 4) iScore = 100
-  else if (iPer100 <= 6) iScore = 75
-  else if (iPer100 <= 8) iScore = 55
-  else if (iPer100 <= 12) iScore = 35
-  else iScore = 20
+  if (iPer100 > 12) score -= 6
+  else if (iPer100 > 10) score -= 4
+  else if (iPer100 > 8) score -= 2
 
-  /* ---- 6. ORIGINALITY (weight 20%) ---- */
-  let origScore = 100
-  if (similarity.checked && similarity.matches.length > 0) {
-    const topSim = similarity.matches[0].similarity
-    if (topSim < 20) origScore = 100
-    else if (topSim < 35) origScore = 80
-    else if (topSim < 50) origScore = 60
-    else origScore = 40
-  }
+  // 6. ORIGINALITY
+  if (topSim > 50) score -= 15
+  else if (topSim > 35) score -= 8
+  else if (topSim > 20) score -= 3
 
-  /* ---- 7. NEGATIVE SELF-TALK (weight 15%) ---- */
-  const negCount = negativeTalk.count
-  const negScore = Math.max(0, 100 - negCount * 15)
+  // 7. NEGATIVE SELF-TALK: -2 per instance, max -6
+  score -= Math.min(negativeTalk.count * 2, 6)
 
-  /* ---- 8. OVERBOASTING (weight 10%) ---- */
-  const boastCount = overboasting.count
-  const boastScore = Math.max(0, 100 - boastCount * 15)
+  // 8. OVERBOASTING: -2 per instance, max -6
+  score -= Math.min(overboasting.count * 2, 6)
 
-  /* ---- WEIGHTED OVERALL ---- */
-  const checks = [
-    { key: 'spelling', label: 'Spelling', score: spellingScore, weight: 10 },
-    { key: 'grammar', label: 'Grammar', score: grammarScore, weight: 15 },
-    { key: 'sentenceLength', label: 'Sentence length', score: sentenceScore, weight: 10 },
-    { key: 'repetition', label: 'Word repetition', score: repScore, weight: 10 },
-    { key: 'iUsage', label: '"I" usage', score: iScore, weight: 10 },
-    { key: 'originality', label: 'Originality', score: origScore, weight: 20 },
-    { key: 'negativeTalk', label: 'Negative self-talk', score: negScore, weight: 15 },
-    { key: 'overboasting', label: 'Overboasting', score: boastScore, weight: 10 },
-  ]
+  // 9. COMBINATION: negative + boasting together = extra -3
+  if (negativeTalk.count > 0 && overboasting.count > 0) score -= 3
 
-  const overall = Math.max(0, Math.min(100, Math.round(
-    checks.reduce((s, c) => s + c.score * c.weight, 0) / 100
-  )))
+  // Clamp
+  const overall = Math.max(0, Math.min(100, Math.round(score)))
 
-  // Percentile (normal distribution, mean=62, stddev=14)
-  const zScore = (overall - 62) / 14
+  // Percentile (normal distribution, mean=72, stddev=12)
+  const zScore = (overall - 72) / 12
   const percentile = Math.min(99, Math.max(1, Math.round(
     (1 / (1 + Math.exp(-1.7 * zScore))) * 100
   )))
+
+  // Build checks array for display (individual scores not used for overall, just for reference)
+  const checks = [
+    { key: 'spelling', label: 'Spelling', penalty: Math.min(spelling.count * 2, 6) },
+    { key: 'grammar', label: 'Grammar', penalty: Math.min(mechanics.grammarIssues.length, 6) },
+    { key: 'sentenceLength', label: 'Sentence length', penalty: longRatio > 0.35 ? 3 : longRatio > 0.25 ? 2 : 0 },
+    { key: 'repetition', label: 'Word repetition', penalty: Math.min(repetition.overused.length * 2, 6) },
+    { key: 'iUsage', label: '"I" usage', penalty: iPer100 > 12 ? 6 : iPer100 > 10 ? 4 : iPer100 > 8 ? 2 : 0 },
+    { key: 'originality', label: 'Originality', penalty: topSim > 50 ? 15 : topSim > 35 ? 8 : topSim > 20 ? 3 : 0 },
+    { key: 'negativeTalk', label: 'Negative self-talk', penalty: Math.min(negativeTalk.count * 2, 6) },
+    { key: 'overboasting', label: 'Overboasting', penalty: Math.min(overboasting.count * 2, 6) },
+  ]
 
   return {
     checks, overall, percentile,
     details: {
       spelling, mechanics, repetition, overboasting, negativeTalk, similarity,
-      sentenceStats: { mean: Math.round(mean * 10) / 10, pctOver25: Math.round(pctOver25 * 100), pctUnder6: Math.round(pctUnder6 * 100), baseline: 17.2 },
+      sentenceStats: { mean: Math.round(mean * 10) / 10, pctOver25: Math.round(longRatio * 100), pctUnder6: Math.round(shortRatio * 100), baseline: 17.2 },
     },
   }
 }
