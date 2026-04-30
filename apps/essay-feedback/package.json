@@ -16,6 +16,7 @@
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^4.2.1",
+    "an-array-of-english-words": "^2.0.0",
     "vite": "^5.1.0"
   }
 }

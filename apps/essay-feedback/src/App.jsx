@@ -639,78 +639,72 @@ function analyzeMechanics(text) {
 }
 
 /* ================================================================
-   PRACTICAL CHECK 1: SPELLING
+   PRACTICAL CHECK 1: SPELLING (dictionary-based)
    ================================================================ */
-const MISSPELLINGS = {
-  'acheive':'achieve','acheiving':'achieving','accomodate':'accommodate',
-  'accross':'across','agressive':'aggressive','apparantly':'apparently',
-  'arguement':'argument','basicly':'basically','begining':'beginning',
-  'beleive':'believe','benifit':'benefit','buisness':'business',
-  'calender':'calendar','catagory':'category','cemetary':'cemetery',
-  'charachter':'character','comming':'coming','commited':'committed',
-  'comparision':'comparison','competance':'competence','completly':'completely',
-  'concious':'conscious','consistant':'consistent','convienient':'convenient',
-  'definately':'definitely','dependant':'dependent','desparate':'desperate',
-  'developement':'development','diffrence':'difference','dilema':'dilemma',
-  'disapear':'disappear','disapoint':'disappoint','ecstacy':'ecstasy',
-  'embarass':'embarrass','enviroment':'environment','exagerate':'exaggerate',
-  'excercise':'exercise','existance':'existence','experiance':'experience',
-  'familar':'familiar','fasinate':'fascinate','finaly':'finally',
-  'foriegn':'foreign','fourty':'forty','freind':'friend',
-  'fulfil':'fulfill','goverment':'government','grammer':'grammar',
-  'gaurd':'guard','happend':'happened','harrass':'harass',
-  'hieght':'height','humourous':'humorous',
-  'immediatly':'immediately','independant':'independent','indispensible':'indispensable',
-  'innoculate':'inoculate','intellegent':'intelligent','intresting':'interesting',
-  'irresistable':'irresistible','knowlege':'knowledge','liase':'liaise',
-  'libary':'library','liesure':'leisure','maintainance':'maintenance',
-  'millenium':'millennium','mischievious':'mischievous','necesary':'necessary',
-  'neccessary':'necessary','noticable':'noticeable','occassion':'occasion',
-  'occured':'occurred','occurence':'occurrence','oppurtunity':'opportunity',
-  'parliment':'parliament','persistant':'persistent','peice':'piece',
-  'posession':'possession','potatos':'potatoes','preceed':'precede',
-  'privelege':'privilege','proffesional':'professional','pronounciation':'pronunciation',
-  'publically':'publicly','realy':'really','recieve':'receive',
-  'reccomend':'recommend','refered':'referred','relevent':'relevant',
-  'religous':'religious','remeber':'remember','repitition':'repetition',
-  'resistence':'resistance','sence':'sense','seperate':'separate',
-  'seige':'siege','similer':'similar','sinceerly':'sincerely',
-  'speach':'speech','strenght':'strength','succesful':'successful',
-  'suprise':'surprise','tendancy':'tendency','therefor':'therefore',
-  'threshhold':'threshold','tommorow':'tomorrow','tounge':'tongue',
-  'truely':'truly','tyrany':'tyranny','untill':'until',
-  'useable':'usable','vaccuum':'vacuum','vegitable':'vegetable',
-  'visious':'vicious','wether':'whether','wierd':'weird',
-  'writting':'writing','wellfare':'welfare',
-  'alot':'a lot','aswell':'as well','infact':'in fact',
-  'inspite':'in spite','infront':'in front','thankyou':'thank you',
-  'ofcourse':'of course','eventhough':'even though',
-  'teh':'the','hte':'the','adn':'and','taht':'that','waht':'what',
-  'jsut':'just','thier':'their','recieved':'received','wich':'which',
-  'becuase':'because','diffrent':'different','enviorment':'environment',
-  'occassionally':'occasionally','accomodation':'accommodation',
-  'posess':'possess','comittee':'committee','occuring':'occurring',
-  'managment':'management','priviledge':'privilege','persistance':'persistence',
-  'dissappoint':'disappoint','dissapear':'disappear',
-  'acheived':'achieved','beleived':'believed','recieving':'receiving',
-  'occurance':'occurrence','independance':'independence','existance':'existence',
-  'maintainence':'maintenance','occurrance':'occurrence','seperation':'separation',
-  'goverance':'governance','prevelant':'prevalent','concieve':'conceive',
-  'percieve':'perceive','decieve':'deceive','sieze':'seize',
-  'wierd':'weird','freind':'friend','neighbour':'neighbor',
-  'judgement':'judgment','acknowledgement':'acknowledgment',
+let _dictionaryCache = null
+
+async function loadDictionary() {
+  if (_dictionaryCache) return _dictionaryCache
+  try {
+    const base = import.meta.env.BASE_URL || '/essay-feedback/'
+    const res = await fetch(base + 'dictionary.txt')
+    if (!res.ok) return null
+    const text = await res.text()
+    _dictionaryCache = new Set(text.split('\n'))
+    return _dictionaryCache
+  } catch (e) {
+    console.warn('Dictionary load failed:', e)
+    return null
+  }
 }
 
-function checkSpelling(text) {
-  const words = text.match(/\b[a-zA-Z']+\b/g) || []
+function checkSpelling(text, dictionary) {
+  const words = text.match(/\b[a-zA-Z''\u2019]+\b/g) || []
   const found = []
   const seen = new Set()
+  if (!dictionary) return { count: 0, items: found }
+
+  // Common contractions to skip
+  const contractions = new Set([
+    "i'm","i've","i'll","i'd","don't","doesn't","didn't","can't","won't",
+    "shouldn't","wouldn't","couldn't","isn't","aren't","wasn't","weren't",
+    "hasn't","haven't","hadn't","it's","that's","there's","here's",
+    "what's","who's","let's","he's","she's","we're","they're","you're",
+    "we've","they've","you've","we'll","they'll","you'll","he'll","she'll",
+    "i's","he'd","she'd","we'd","they'd","you'd","ain't",
+  ])
+
   for (const w of words) {
     const lower = w.toLowerCase()
+    // Skip: short words, already seen, contractions
     if (lower.length <= 2 || seen.has(lower)) continue
-    if (w[0] === w[0].toUpperCase() && w[0] !== w[0].toLowerCase()) continue
-    if (MISSPELLINGS[lower]) {
-      found.push({ word: w, suggestion: MISSPELLINGS[lower] })
+    if (contractions.has(lower)) continue
+    if (lower.includes("'") || lower.includes('\u2019') || lower.includes("'")) continue
+
+    // Skip proper nouns: capitalized words not at sentence start
+    const idx = text.indexOf(w)
+    const before = text.slice(Math.max(0, idx - 3), idx)
+    const isStartOfSentence = idx === 0 || /[.!?]\s*$/.test(before)
+    if (w[0] === w[0].toUpperCase() && w[0] !== w[0].toLowerCase() && !isStartOfSentence) continue
+
+    // Skip ALL CAPS words (intentional emphasis)
+    if (w === w.toUpperCase() && w.length > 1) continue
+
+    // Check against dictionary
+    if (!dictionary.has(lower)) {
+      // Check common suffixes
+      const base = lower.replace(/(ing|ed|er|est|ly|tion|ness|ment|able|ful|less|ous|ive|ise|ize|ised|ized|ising|izing|ments|ings|ers)$/, '')
+      if (base.length >= 3 && dictionary.has(base)) continue
+
+      // Check if removing doubled letter works (hoow -> how)
+      const deduped = lower.replace(/(.)\1+/g, '$1')
+      if (deduped !== lower && dictionary.has(deduped)) {
+        found.push({ word: w, suggestion: deduped })
+        seen.add(lower)
+        continue
+      }
+
+      found.push({ word: w, suggestion: '' })
       seen.add(lower)
     }
   }
@@ -922,7 +916,7 @@ function detectPredictableEnding(text) {
 /* ================================================================
    RUN ALL CHECKS
    ================================================================ */
-function runAllChecks(text, essayTypeId, fingerprints) {
+function runAllChecks(text, essayTypeId, fingerprints, dictionary) {
   const narrative = analyzeNarrative(text)
   const agency = analyzeAgency(text)
   const transformation = analyzeTransformation(text)
@@ -936,7 +930,7 @@ function runAllChecks(text, essayTypeId, fingerprints) {
   const ending = detectPredictableEnding(text)
 
   // Practical checks (visible in report)
-  const spelling = checkSpelling(text)
+  const spelling = checkSpelling(text, dictionary)
   const repetition = checkRepetition(text)
   const overboasting = checkOverboasting(text)
 
@@ -1198,7 +1192,8 @@ function ReportCard({ result, meta, onBack }) {
                     <div className="rc-status-detail">
                       {s.items.map((item, i) => (
                         <div className="rc-status-item" key={i}>
-                          <span className="rc-item-wrong">"{item.word}"</span> should be <span className="rc-item-right">"{item.suggestion}"</span>
+                          <span className="rc-item-wrong">"{item.word}"</span>
+                          {item.suggestion ? <> should be <span className="rc-item-right">"{item.suggestion}"</span></> : ' - check spelling'}
                         </div>
                       ))}
                     </div>
@@ -1460,6 +1455,7 @@ export default function App() {
   const [result, setResult] = useState(null)
   const [analyzing, setAnalyzing] = useState(false)
   const [fingerprints, setFingerprints] = useState(null)
+  const [dictionary, setDictionary] = useState(null)
 
   const wordCount = useMemo(() => countWords(essay), [essay])
   const charCount = essay.length
@@ -1470,6 +1466,7 @@ export default function App() {
   useEffect(() => {
     emitEvent('tool_open', { action: 'open' })
     loadFingerprints().then(fp => { if (fp) setFingerprints(fp) })
+    loadDictionary().then(d => { if (d) setDictionary(d) })
   }, [])
 
   function handleAnalyze(e) {
@@ -1479,7 +1476,7 @@ export default function App() {
     const typeObj = ESSAY_TYPES.find(t => t.label === essayType)
     emitEvent('essay_submit', { action: 'submit', targetLabel: essayType, extraData: { essay_type: essayType, college, word_count: wordCount, question, essay_text: essay } })
     setTimeout(() => {
-      const res = runAllChecks(essay, typeObj ? typeObj.id : 'commonapp', fingerprints)
+      const res = runAllChecks(essay, typeObj ? typeObj.id : 'commonapp', fingerprints, dictionary)
       setResult(res)
       setAnalyzing(false)
       emitEvent('report_generated', { action: 'analyze', extraData: { overall: res.overall, essayClass: res.essayClass, scores: Object.fromEntries(res.checks.map(c => [c.key, c.score])) } })
