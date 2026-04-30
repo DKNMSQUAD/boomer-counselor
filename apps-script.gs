@@ -34,6 +34,7 @@ const ANALYTICS_TABS = {
   PROFILE: 'Profile Builder',
   COLLEGE: 'College Search',
   TUTOR: 'Tutor & Counselor',
+  ESSAY: 'Essay Feedback',
 };
 
 // ============================================================================
@@ -80,6 +81,13 @@ const ANALYTICS_COLLEGE_HEADERS = [
 const ANALYTICS_TUTOR_HEADERS = [
   'Timestamp','Session ID','Name','Email','City','Country',
   'Filters used','Providers clicked',
+];
+
+const ANALYTICS_ESSAY_HEADERS = [
+  'Timestamp','Name','Email','City','Country','School',
+  'Essay Type','College','Question','Word Count','Essay Text',
+  'Overall Score','Essay Class',
+  'Narrative','Agency','Transformation','Specificity','Insight','Alignment','Mechanics',
 ];
 
 // ============================================================================
@@ -348,6 +356,7 @@ function writeAnalytics(data) {
   else if (tool === 'profile')   updateProfileSession(ass, data, u, loc, now);
   else if (tool === 'college-search') updateCollegeSession(ass, data, u, loc, now);
   else if (tool === 'tutor-counselor') updateTutorSession(ass, data, u, loc, now);
+  else if (tool === 'essay-feedback') updateEssayFeedbackSession(ass, data, u, loc, now);
 }
 
 function upsertAnalyticsUser(ass, u, loc, now, tool) {
@@ -657,6 +666,60 @@ function updateTutorSession(ass, data, u, loc, now) {
       if (list.indexOf(label) === -1) { list.push(label); }
       sheet.getRange(row, 8).setValue(list.join(', '));
       sheet.getRange(row, 1).setValue(now);
+    }
+  }
+}
+
+function updateEssayFeedbackSession(ass, data, u, loc, now) {
+  var sheet = ass.getSheetByName(ANALYTICS_TABS.ESSAY);
+  if (!sheet) {
+    sheet = ass.insertSheet(ANALYTICS_TABS.ESSAY);
+    sheet.appendRow(ANALYTICS_ESSAY_HEADERS);
+    sheet.getRange(1, 1, 1, ANALYTICS_ESSAY_HEADERS.length).setFontWeight('bold').setBackground('#f5c518');
+    sheet.setFrozenRows(1);
+    sheet.setColumnWidth(11, 400);
+  }
+
+  if (data.eventType === 'essay_submit') {
+    var extra = parseExtra(data.extraData);
+    if (!extra) return;
+    sheet.appendRow([
+      now,
+      u.name || '',
+      u.email || '',
+      loc.city || '',
+      loc.country_name || '',
+      extra.school || '',
+      extra.essay_type || '',
+      extra.college || '',
+      extra.question || '',
+      extra.word_count || '',
+      extra.essay_text || '',
+      '', '', '', '', '', '', '', '', '',
+    ]);
+  }
+
+  if (data.eventType === 'report_generated') {
+    var extra = parseExtra(data.extraData);
+    if (!extra) return;
+    var lastRow = sheet.getLastRow();
+    if (lastRow > 1) {
+      var email = u.email || '';
+      for (var r = lastRow; r >= 2; r--) {
+        if (sheet.getRange(r, 3).getValue() === email && !sheet.getRange(r, 12).getValue()) {
+          sheet.getRange(r, 12).setValue(extra.overall || '');
+          sheet.getRange(r, 13).setValue(extra.essayClass || '');
+          var scores = extra.scores || {};
+          sheet.getRange(r, 14).setValue(scores.narrative || '');
+          sheet.getRange(r, 15).setValue(scores.agency || '');
+          sheet.getRange(r, 16).setValue(scores.transformation || '');
+          sheet.getRange(r, 17).setValue(scores.specificity || '');
+          sheet.getRange(r, 18).setValue(scores.insight || '');
+          sheet.getRange(r, 19).setValue(scores.alignment || '');
+          sheet.getRange(r, 20).setValue(scores.mechanics || '');
+          break;
+        }
+      }
     }
   }
 }

@@ -407,7 +407,7 @@ function analyzeAlignment(text, essayTypeId) {
 /* ================================================================
    MODULE 7: WRITING MECHANICS (5 pts)
    ================================================================ */
-const BASELINE_SENTENCE_LENGTH = { mean: 15.2, stdDev: 6.8 }
+const BASELINE_SENTENCE_LENGTH = { mean: 17.2, stdDev: 11.0 }
 
 function analyzeMechanics(text) {
   const sentences = splitSentences(text)
@@ -623,7 +623,7 @@ function ReportCard({ result, meta, onBack }) {
 
         <div className="rc-section">
           <div className="rc-stitle">Sentence length distribution</div>
-          <Histogram student={details.mechanics.histogram} baseline={{ '1-5': 0.05, '6-10': 0.18, '11-15': 0.30, '16-20': 0.25, '21-25': 0.13, '26-30': 0.06, '31+': 0.03 }} />
+          <Histogram student={details.mechanics.histogram} baseline={{ '1-5': 0.1142, '6-10': 0.1734, '11-15': 0.2071, '16-20': 0.1889, '21-25': 0.1340, '26-30': 0.0813, '31+': 0.1012 }} />
         </div>
 
         {allFlags.length > 0 && (
@@ -673,6 +673,7 @@ function ReportCard({ result, meta, onBack }) {
 export default function App() {
   const [essayType, setEssayType] = useState('')
   const [college, setCollege] = useState('')
+  const [school, setSchool] = useState('')
   const [question, setQuestion] = useState('')
   const [limit, setLimit] = useState('')
   const [essay, setEssay] = useState('')
@@ -683,7 +684,7 @@ export default function App() {
   const charCount = essay.length
   const limitNum = parseInt(limit, 10)
   const isOver = Number.isFinite(limitNum) && limitNum > 0 && wordCount > limitNum
-  const canSubmit = essayType && limit && essay.trim().length > 50
+  const canSubmit = essayType && limit && school && essay.trim().length > 50
 
   useEffect(() => { emitEvent('tool_open', { action: 'open' }) }, [])
 
@@ -692,7 +693,7 @@ export default function App() {
     if (!canSubmit) return
     setAnalyzing(true)
     const typeObj = ESSAY_TYPES.find(t => t.label === essayType)
-    emitEvent('essay_submit', { action: 'submit', targetLabel: essayType, extraData: { essay_type: essayType, college, word_count: wordCount } })
+    emitEvent('essay_submit', { action: 'submit', targetLabel: essayType, extraData: { essay_type: essayType, college, school, word_count: wordCount, question, essay_text: essay } })
     setTimeout(() => {
       const res = runAllChecks(essay, typeObj ? typeObj.id : 'commonapp')
       setResult(res)
@@ -714,7 +715,7 @@ export default function App() {
           </div>
         </header>
         <main className="ef-report-page">
-          <ReportCard result={result} meta={{ essayType, college, wordCount, question }} onBack={() => setResult(null)} />
+          <ReportCard result={result} meta={{ essayType, college, school, wordCount, question }} onBack={() => setResult(null)} />
         </main>
       </div>
     )
@@ -751,6 +752,10 @@ export default function App() {
                 <input id="ef-limit" className="ef-input" type="number" min="1" placeholder="e.g. 650" value={limit} onChange={e => setLimit(e.target.value)} required />
               </div>
             </div>
+          </div>
+          <div className="ef-field">
+            <label className="ef-label" htmlFor="ef-school">Your school<span className="ef-req">*</span></label>
+            <input id="ef-school" className="ef-input" type="text" placeholder="e.g. Delhi Public School" value={school} onChange={e => setSchool(e.target.value)} required />
           </div>
           <div className="ef-field">
             <label className="ef-label" htmlFor="ef-question">Essay question</label>
