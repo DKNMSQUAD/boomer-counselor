@@ -1297,6 +1297,57 @@ function ReportCard({ result, meta, onBack }) {
           </div>
         )}
 
+        {/* CONCLUSION - always constructive */}
+        <div className="rc-conclusion">
+          <div className="rc-conclusion-body">
+            {(() => {
+              // Always find something positive
+              const positives = []
+              if (details.narrative.score >= 70) positives.push('Your storytelling is strong')
+              if (details.agency.score >= 70) positives.push('you show clear personal action')
+              if (details.specificity.score >= 70) positives.push('your details are vivid and real')
+              if (details.transformation.score >= 70) positives.push('we can see genuine growth')
+              if (details.insight.score >= 70) positives.push('your reflection shows self-awareness')
+              if (details.alignment.score >= 70) positives.push('you answer the prompt well')
+              if (details.mechanics.score >= 70) positives.push('your writing flows well')
+              if (positives.length === 0) positives.push('You have a story worth telling')
+
+              // Find the most impactful thing to improve
+              const sorted = [...checks].sort((a, b) => a.score - b.score)
+              const weakest = sorted[0]
+              const improveSuggestions = {
+                narrative: 'show more real scenes from your life instead of explaining ideas',
+                agency: 'put yourself at the center, show the decisions YOU made',
+                transformation: 'add a moment where something clicked or you saw things differently',
+                specificity: 'replace general statements with specific names, places, and moments',
+                insight: 'go deeper, what did this experience actually teach you about yourself?',
+                alignment: 'connect your story more clearly to what the prompt is asking',
+                mechanics: 'tighten your sentences and vary their length',
+              }
+
+              const posText = positives.length >= 3
+                ? `${positives.slice(0, 2).join(', ')}, and ${positives[2]}`
+                : positives.join(' and ')
+
+              return (
+                <>
+                  <div className="rc-conclusion-positive">{posText.charAt(0).toUpperCase() + posText.slice(1)}.</div>
+                  {weakest && weakest.score < 75 && (
+                    <div className="rc-conclusion-improve">To take it further: {improveSuggestions[weakest.key] || 'strengthen the weakest area above'}.</div>
+                  )}
+                  <div className="rc-conclusion-verdict">
+                    {strong
+                      ? 'This is a strong essay. A counselor can help you with the final polish.'
+                      : passed
+                        ? 'Good foundation. One or two targeted revisions will make a real difference.'
+                        : 'There is potential here. Focus on the suggestion above, revise, and re-analyze.'}
+                  </div>
+                </>
+              )
+            })()}
+          </div>
+        </div>
+
         <div className="rc-actions no-print">
           <button className="rc-btn rc-btn-secondary" onClick={handleDownload} type="button" disabled={downloading}>
             {downloading ? 'Generating PDF...' : 'Download report (PDF)'}

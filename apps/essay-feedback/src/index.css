@@ -569,67 +569,32 @@ button { cursor: pointer; font-family: inherit; }
 /* Conclusion */
 .rc-conclusion {
   margin-top: 18px;
-  padding: 18px;
+  padding: 16px;
+  background: #f3efe6;
   border-radius: 4px;
-  display: flex;
-  gap: 14px;
-  align-items: flex-start;
+  border: 1px solid #d6cfc0;
 }
-.rc-pass {
-  background: #e8f5e9;
-  border: 1.5px solid #66bb6a;
+.rc-conclusion-body { }
+.rc-conclusion-positive {
+  font-size: 13px;
+  color: #1a6e3a;
+  font-weight: 600;
+  line-height: 1.5;
+  margin-bottom: 8px;
 }
-.rc-fail {
-  background: #fff3e0;
-  border: 1.5px solid #ffa726;
-}
-.rc-conclusion-icon {
-  font-size: 24px;
-  font-weight: 900;
-  flex-shrink: 0;
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-.rc-pass .rc-conclusion-icon { background: #66bb6a; color: #fff; }
-.rc-fail .rc-conclusion-icon { background: #ffa726; color: #fff; }
-.rc-conclusion-body { flex: 1; min-width: 0; }
-.rc-conclusion-title {
-  font-family: 'Playfair Display', serif;
-  font-size: 16px;
-  font-weight: 700;
-  color: #1a1a1a;
-  margin-bottom: 4px;
-}
-.rc-conclusion-score {
+.rc-conclusion-improve {
   font-size: 12px;
   color: #5a5347;
-  margin-bottom: 10px;
-}
-.rc-conclusion-score strong { color: #1a1a1a; }
-.rc-fixes { margin-bottom: 10px; }
-.rc-fixes-title {
-  font-size: 11px;
-  font-weight: 700;
-  color: #1a1a1a;
-  margin-bottom: 4px;
-}
-.rc-fixes-list {
-  font-size: 11px;
-  color: #5a5347;
-  line-height: 1.6;
-  padding-left: 18px;
-  margin: 0;
-}
-.rc-fixes-list li { margin-bottom: 4px; }
-.rc-conclusion-rec {
-  font-size: 11px;
-  color: #5a5347;
   line-height: 1.5;
+  margin-bottom: 8px;
+  padding-left: 10px;
+  border-left: 3px solid #f5a623;
+}
+.rc-conclusion-verdict {
+  font-size: 11px;
+  color: #8a7f72;
   font-style: italic;
+  line-height: 1.5;
 }
 
 /* Action buttons */
