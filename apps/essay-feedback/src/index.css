@@ -91,6 +91,7 @@ button { cursor: pointer; font-family: inherit; }
   color: #1a1a1a;
   margin-bottom: 8px;
 }
+.ef-req { color: #c0392b; margin-left: 3px; }
 .ef-input,
 .ef-select,
 .ef-textarea {

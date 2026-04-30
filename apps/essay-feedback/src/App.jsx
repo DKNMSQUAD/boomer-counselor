@@ -83,7 +83,7 @@ export default function App() {
       <main className='ef-page'>
         <form onSubmit={handleSubmit}>
           <div className='ef-field'>
-            <label className='ef-label' htmlFor='ef-type'>Essay type</label>
+            <label className='ef-label' htmlFor='ef-type'>Essay type<span className='ef-req'>*</span></label>
             <select
               id='ef-type'
               className='ef-select'
@@ -110,7 +110,7 @@ export default function App() {
                 />
               </div>
               <div>
-                <label className='ef-label' htmlFor='ef-limit'>Maximum length (words)</label>
+                <label className='ef-label' htmlFor='ef-limit'>Maximum length (words)<span className='ef-req'>*</span></label>
                 <input
                   id='ef-limit'
                   className='ef-input'
@@ -137,7 +137,7 @@ export default function App() {
           </div>
 
           <div className='ef-field'>
-            <label className='ef-label' htmlFor='ef-essay'>Your essay</label>
+            <label className='ef-label' htmlFor='ef-essay'>Your essay<span className='ef-req'>*</span></label>
             <textarea
               id='ef-essay'
               className='ef-textarea ef-textarea-essay'
