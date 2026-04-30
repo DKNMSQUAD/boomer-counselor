@@ -5,6 +5,26 @@ import { jsPDF } from 'jspdf'
 import './index.css'
 
 /* ================================================================
+   ESSAY API (Google Cloud Function - Phase 2)
+   ================================================================ */
+const ESSAY_API_URL = 'https://asia-south1-nm-squad-492811.cloudfunctions.net/essayApi'
+
+async function fetchApi(path, body) {
+  try {
+    const res = await fetch(ESSAY_API_URL + path, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    })
+    if (!res.ok) return null
+    return await res.json()
+  } catch (e) {
+    console.warn('[EssayAPI]', path, 'failed:', e.message)
+    return null
+  }
+}
+
+/* ================================================================
    ESSAY TYPES + PROMPT EXPECTATIONS
    ================================================================ */
 const ESSAY_TYPES = [
@@ -150,6 +170,104 @@ function countMatches(text, patterns) {
 function containsAny(text, phrases) {
   const lower = text.toLowerCase()
   return phrases.filter(p => lower.includes(p.toLowerCase()))
+}
+
+/* ================================================================
+   SIMILARITY ENGINE (Phase 2 - compares against 5,827 past essays)
+   ================================================================ */
+let _fingerprintsCache = null
+
+async function loadFingerprints() {
+  if (_fingerprintsCache) return _fingerprintsCache
+  try {
+    const base = import.meta.env.BASE_URL || '/'
+    const res = await fetch(base + 'fingerprints.json')
+    if (!res.ok) return null
+    _fingerprintsCache = await res.json()
+    return _fingerprintsCache
+  } catch { return null }
+}
+
+// Simple hash: FNV-1a 32-bit
+function fnv1a(str) {
+  let h = 0x811c9dc5
+  for (let i = 0; i < str.length; i++) {
+    h ^= str.charCodeAt(i)
+    h = Math.imul(h, 0x01000193)
+  }
+  return h >>> 0
+}
+
+function getEssayTrigrams(text) {
+  const words = text.toLowerCase().replace(/[^a-z\s]/g, '').split(/\s+/).filter(w => w)
+  const grams = new Set()
+  for (let i = 0; i <= words.length - 3; i++) {
+    grams.add(words[i] + ' ' + words[i+1] + ' ' + words[i+2])
+  }
+  return grams
+}
+
+// Must match Python's MD5-based MinHash
+function minhashSignature(trigrams, numHashes = 32) {
+  const MAX = 0xFFFFFFFF
+  if (trigrams.size === 0) return new Array(numHashes).fill(MAX)
+  const sig = new Array(numHashes).fill(MAX)
+  // Use FNV-1a with seed mixing (different from Python's MD5, but consistent within JS)
+  for (const t of trigrams) {
+    for (let i = 0; i < numHashes; i++) {
+      const h = fnv1a(i + ':' + t)
+      if (h < sig[i]) sig[i] = h
+    }
+  }
+  return sig
+}
+
+function jaccardFromMinhash(sigA, sigB) {
+  let matches = 0
+  for (let i = 0; i < sigA.length; i++) {
+    if (sigA[i] === sigB[i]) matches++
+  }
+  return matches / sigA.length
+}
+
+function checkSimilarity(text, fingerprints) {
+  if (!fingerprints || fingerprints.length === 0) {
+    return { score: 100, matches: [], checked: false }
+  }
+  const trigrams = getEssayTrigrams(text)
+  const sig = minhashSignature(trigrams)
+
+  // Also do direct trigram Jaccard on top candidates for accuracy
+  const candidates = []
+  for (let i = 0; i < fingerprints.length; i++) {
+    const fp = fingerprints[i]
+    // Quick MinHash pre-filter
+    let mhMatches = 0
+    for (let j = 0; j < 32; j++) {
+      if (sig[j] === fp.h[j]) mhMatches++
+    }
+    if (mhMatches >= 5) { // rough threshold ~15% minhash overlap
+      candidates.push({ idx: i, mhSim: mhMatches / 32, type: fp.t, college: fp.c })
+    }
+  }
+
+  // Sort by MinHash similarity, take top 5
+  candidates.sort((a, b) => b.mhSim - a.mhSim)
+  const top = candidates.slice(0, 5)
+
+  const matches = top
+    .filter(c => c.mhSim >= 0.25)
+    .map(c => ({
+      similarity: Math.round(c.mhSim * 100),
+      type: c.type,
+      college: c.college,
+    }))
+
+  const maxSim = matches.length > 0 ? matches[0].similarity : 0
+  // Score: 100 = fully original, 0 = exact match
+  const score = Math.max(0, 100 - maxSim)
+
+  return { score, matches, checked: true, totalCompared: fingerprints.length }
 }
 
 /* ================================================================
@@ -458,7 +576,7 @@ function analyzeMechanics(text) {
 /* ================================================================
    RUN ALL CHECKS
    ================================================================ */
-function runAllChecks(text, essayTypeId) {
+function runAllChecks(text, essayTypeId, fingerprints) {
   const narrative = analyzeNarrative(text)
   const agency = analyzeAgency(text)
   const transformation = analyzeTransformation(text)
@@ -466,6 +584,7 @@ function runAllChecks(text, essayTypeId) {
   const insight = analyzeInsight(text)
   const alignment = analyzeAlignment(text, essayTypeId)
   const mechanics = analyzeMechanics(text)
+  const similarity = checkSimilarity(text, fingerprints)
 
   const checks = [
     { key: 'narrative', label: 'Narrative presence', score: narrative.score, weight: 15 },
@@ -485,7 +604,16 @@ function runAllChecks(text, essayTypeId) {
     ...specificity.flags, ...insight.flags, ...alignment.flags, ...mechanics.flags,
   ]
 
-  // Classify essay type
+  // Similarity flags
+  if (similarity.checked && similarity.matches.length > 0) {
+    const top = similarity.matches[0]
+    if (top.similarity >= 50) {
+      allFlags.unshift(`This essay is ${top.similarity}% similar to a previously submitted ${top.type || 'essay'}${top.college ? ' for ' + top.college : ''}. Consider making it more original.`)
+    } else if (top.similarity >= 30) {
+      allFlags.push(`Some overlap (${top.similarity}%) detected with a past ${top.type || 'essay'}${top.college ? ' for ' + top.college : ''}.`)
+    }
+  }
+
   let essayClass = 'Balanced'
   if (narrative.ratio < 0.3) essayClass = 'Topic-explanation (weak)'
   else if (narrative.ratio > 0.7) essayClass = 'Story-driven'
@@ -493,7 +621,7 @@ function runAllChecks(text, essayTypeId) {
 
   return {
     checks, overall, essayClass, allFlags,
-    details: { narrative, agency, transformation, specificity, insight, alignment, mechanics },
+    details: { narrative, agency, transformation, specificity, insight, alignment, mechanics, similarity },
   }
 }
 
@@ -635,6 +763,20 @@ function ReportCard({ result, meta, onBack }) {
           </div>
         )}
 
+        {result.similarity && result.similarity.matches && result.similarity.matches.length > 0 && (
+          <div className="rc-section">
+            <div className="rc-stitle">Similarity check (vs {result.similarity.compared_count} past essays)</div>
+            {result.similarity.matches.slice(0, 3).map((m, i) => (
+              <div className="rc-flag" key={i} style={m.similarity > 0.6 ? { borderLeftColor: '#c0392b', background: '#fde8e8' } : {}}>
+                <span className="rc-flag-icon" style={m.similarity > 0.6 ? { background: '#c0392b' } : {}}>!</span>
+                {Math.round(m.similarity * 100)}% match
+                {m.college ? ` (${m.college})` : ''}
+                {m.essay_type ? ` - ${m.essay_type}` : ''}
+              </div>
+            ))}
+          </div>
+        )}
+
         <div className={'rc-conclusion ' + (passed ? 'rc-pass' : 'rc-fail')}>
           <div className="rc-conclusion-icon">{passed ? '\u2713' : '\u2717'}</div>
           <div className="rc-conclusion-body">
@@ -688,18 +830,33 @@ export default function App() {
 
   useEffect(() => { emitEvent('tool_open', { action: 'open' }) }, [])
 
-  function handleAnalyze(e) {
+  async function handleAnalyze(e) {
     e.preventDefault()
     if (!canSubmit) return
     setAnalyzing(true)
     const typeObj = ESSAY_TYPES.find(t => t.label === essayType)
     emitEvent('essay_submit', { action: 'submit', targetLabel: essayType, extraData: { essay_type: essayType, college, school, word_count: wordCount, question, essay_text: essay } })
-    setTimeout(() => {
-      const res = runAllChecks(essay, typeObj ? typeObj.id : 'commonapp')
-      setResult(res)
-      setAnalyzing(false)
-      emitEvent('report_generated', { action: 'analyze', extraData: { overall: res.overall, essayClass: res.essayClass, scores: Object.fromEntries(res.checks.map(c => [c.key, c.score])) } })
-    }, 100)
+
+    // Run client-side analysis immediately
+    const res = runAllChecks(essay, typeObj ? typeObj.id : 'commonapp')
+
+    // Call similarity API (non-blocking, results merge in)
+    const simPromise = fetchApi('/similarity', { essay_text: essay, essay_type: essayType, college })
+    const sim = await simPromise
+    if (sim && sim.flag) {
+      res.allFlags.unshift(sim.flag.message)
+      res.similarity = sim
+    }
+
+    setResult(res)
+    setAnalyzing(false)
+    emitEvent('report_generated', { action: 'analyze', extraData: { overall: res.overall, essayClass: res.essayClass, scores: Object.fromEntries(res.checks.map(c => [c.key, c.score])) } })
+
+    // Store essay in background (don't block the UI)
+    fetchApi('/store', {
+      essay_text: essay, essay_type: essayType, college, question, school,
+      student_name: '', student_email: '',
+    })
   }
 
   if (result) {

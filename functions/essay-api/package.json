@@ -1,0 +1,10 @@
+{
+  "name": "boomer-counselor-essay-api",
+  "version": "1.0.0",
+  "main": "index.js",
+  "engines": { "node": "20" },
+  "dependencies": {
+    "@google-cloud/firestore": "^7.0.0",
+    "cors": "^2.8.5"
+  }
+}
