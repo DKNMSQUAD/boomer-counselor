@@ -1,248 +1,96 @@
-import { useState, useRef, useEffect, useCallback } from 'react'
+import React, { useState, useEffect } from 'react'
 import { jsPDF } from 'jspdf'
 
-/* ========================================================
-   Scorecard view of the essay feedback report.
-   Each metric is shown as a Low / Med / High bar with a
-   black marker where this essay falls. Click any bar to
-   open a right-side details drawer.
-   ======================================================== */
+// === Marker positions on Low/Med/High track (0-100) ===
+const spellingPos = (n) => n <= 1 ? 92 : n <= 3 ? 75 : n <= 6 ? 50 : n <= 10 ? 25 : 8
+const grammarPos = (n) => n === 0 ? 95 : n <= 2 ? 78 : n <= 5 ? 50 : n <= 9 ? 25 : 8
+const sentencePos = (m) => m < 12 ? 22 : m < 16 ? 40 : m <= 20 ? 75 : m <= 24 ? 55 : 25
+const iUsagePos = (p) => p <= 2 ? 88 : p <= 4 ? 65 : p <= 6 ? 42 : p <= 9 ? 22 : 8
+const uniquenessPos = (s) => s < 30 ? 92 : s < 45 ? 75 : s < 60 ? 50 : s < 75 ? 25 : 8
+const promptFitPos = (s) => s == null ? 50 : s >= 85 ? 92 : s >= 70 ? 75 : s >= 55 ? 50 : s >= 40 ? 25 : 8
 
-// Convert raw value to a 0-100 position on a Low|Med|High bar.
-// We want LOW = bad, HIGH = good for ALL bars (so a higher position is better).
-function spellingPosition(perHundred) {
-  // 0 errors per 100 = 100%, 5+ = 0%
-  if (perHundred <= 0) return 100
-  if (perHundred >= 5) return 0
-  return Math.round(100 - perHundred * 20)
-}
+const bandFromPos = (p) => p < 33 ? 'low' : p < 67 ? 'med' : 'high'
 
-function grammarPosition(perHundred) {
-  // 0 errors per 100 = 100%, 8+ = 0%
-  if (perHundred <= 0) return 100
-  if (perHundred >= 8) return 0
-  return Math.round(100 - perHundred * 12.5)
-}
-
-function sentenceLengthPosition(mean) {
-  // 17.2 is ideal. Distance from 17.2 maps to a position.
-  const dev = Math.abs(mean - 17.2)
-  if (dev >= 12) return 0
-  if (dev <= 1) return 100
-  return Math.round(100 - (dev / 12) * 100)
-}
-
-function iUsagePosition(perHundred) {
-  // 2.25 is database average. 0-3 per 100 = HIGH, 3-5 = MED, 5+ = LOW.
-  if (perHundred <= 2.25) return 100
-  if (perHundred >= 8) return 0
-  return Math.round(100 - ((perHundred - 2.25) / 5.75) * 100)
-}
-
-function uniquenessPosition(similarityPct) {
-  return Math.max(0, Math.min(100, 100 - similarityPct))
-}
-
-function promptFitPosition(score) {
-  return Math.max(0, Math.min(100, score))
-}
-
-function wordCountPosition(words, limit) {
-  if (!limit) return 50
-  const ratio = words / limit
-  if (ratio < 0.25) return 10
-  if (ratio < 0.5) return 40
-  if (ratio <= 1.0) return 95
-  if (ratio <= 1.05) return 65
-  if (ratio <= 1.15) return 30
-  return 5
-}
-
-function bandFromPosition(pos) {
-  if (pos < 33) return 'Low'
-  if (pos < 67) return 'Med'
-  return 'High'
-}
-
-function bandLabelForMetric(metricKey, pos, extra) {
-  const band = bandFromPosition(pos)
-  switch (metricKey) {
-    case 'spelling':
-    case 'grammar':
-      return band === 'High' ? 'Good' : band === 'Med' ? 'Average' : 'Poor'
-    case 'sentenceLength': {
-      const m = extra.mean
-      if (Math.abs(m - 17.2) <= 1) return 'Like most people'
-      return m > 17.2 ? 'Longer than others' : 'Shorter than others'
-    }
-    case 'iUsage': {
-      const p = extra.perHundred
-      if (Math.abs(p - 2.25) <= 1) return 'Like most people'
-      return p > 2.25 ? 'More than others' : 'Less than others'
-    }
-    case 'uniqueness': {
-      if (pos >= 80) return 'More unique'
-      if (pos >= 40) return 'Like most essays'
-      return 'Less unique'
-    }
-    case 'promptFit':
-      return band === 'High' ? 'Strong fit' : band === 'Med' ? 'Partial fit' : 'Weak fit'
-    case 'wordCount': {
-      const w = extra.words, l = extra.limit
-      if (!l) return `${w} words`
-      if (w > l) return `${w} / ${l} (over)`
-      return `${w} / ${l}`
-    }
-    default:
-      return band
+const statusLabel = (key, pos, raw) => {
+  const b = bandFromPos(pos)
+  if (key === 'spelling')   return b === 'high' ? 'Good' : b === 'med' ? 'A few errors' : 'Many errors'
+  if (key === 'grammar')    return b === 'high' ? 'Good' : b === 'med' ? 'Some issues' : 'Many issues'
+  if (key === 'sentence') {
+    if (raw < 12) return 'Shorter than others'
+    if (raw > 24) return 'Much longer'
+    if (raw >= 14 && raw <= 22) return 'Just right'
+    return 'A little off'
   }
+  if (key === 'i-usage')    return b === 'high' ? 'Balanced' : b === 'med' ? 'A bit much' : 'More than others'
+  if (key === 'uniqueness') return b === 'high' ? 'More unique' : b === 'med' ? 'Some overlap' : 'Sounds generic'
+  if (key === 'prompt')     return b === 'high' ? 'Strong fit' : b === 'med' ? 'Partial fit' : 'Off prompt'
+  return ''
 }
 
-export function buildScorecard(result, meta) {
-  const { details } = result
-  const totalWords = meta.wordCount || 1
-
-  const spellCount = details.spelling.count
-  const spellPer100 = (spellCount / totalWords) * 100
-  const grammarCount = (details.mechanics.grammarIssues || []).length
-  const grammarPer100 = (grammarCount / totalWords) * 100
-  const sentMean = details.sentenceStats.mean
-  const iPer100 = details.repetition.iPer100
-  const topSim = (details.similarity && details.similarity.matches && details.similarity.matches.length > 0)
-    ? details.similarity.matches[0].similarity : 0
-  const promptFitScore = (result.insights && result.insights.available && typeof result.insights.promptFitScore === 'number')
-    ? result.insights.promptFitScore : null
-  const limit = meta.limit ? parseInt(meta.limit, 10) : null
-
-  const mostRepeated = (details.repetition.overused || []).slice(0, 5)
-
-  const bars = [
-    {
-      key: 'spelling',
-      label: 'Spelling',
-      position: spellingPosition(spellPer100),
-      band: null,
-      raw: { count: spellCount, perHundred: Math.round(spellPer100 * 10) / 10, items: details.spelling.items || [] },
-    },
-    {
-      key: 'grammar',
-      label: 'Grammatical mistakes',
-      position: grammarPosition(grammarPer100),
-      band: null,
-      raw: { count: grammarCount, perHundred: Math.round(grammarPer100 * 10) / 10, items: details.mechanics.grammarIssues || [] },
-    },
-    {
-      key: 'sentenceLength',
-      label: 'Sentence length',
-      position: sentenceLengthPosition(sentMean),
-      band: null,
-      raw: { mean: sentMean, baseline: 17.2, pctOver25: details.sentenceStats.pctOver25, problematic: details.mechanics.problematic || [] },
-    },
-    {
-      key: 'iUsage',
-      label: '"I" usage',
-      position: iUsagePosition(iPer100),
-      band: null,
-      raw: { perHundred: iPer100, baseline: 2.25, totalI: details.repetition.totalIUsage || 0 },
-    },
-    {
-      key: 'uniqueness',
-      label: 'Uniqueness',
-      position: uniquenessPosition(topSim),
-      band: null,
-      raw: { topSim, totalCompared: details.similarity.totalCompared || 6804, matches: details.similarity.matches || [] },
-    },
-  ]
-
-  if (promptFitScore !== null) {
-    bars.push({
-      key: 'promptFit',
-      label: 'Does it answer the prompt',
-      position: promptFitPosition(promptFitScore),
-      band: null,
-      raw: {
-        score: promptFitScore,
-        reasoning: result.insights.promptFitReasoning || '',
-        missed: result.insights.missed || '',
-        topics: result.insights.topics || [],
-      },
-    })
-  }
-
-  bars.push({
-    key: 'wordCount',
-    label: 'Word count',
-    position: wordCountPosition(totalWords, limit),
-    band: null,
-    raw: { words: totalWords, limit, isOver: limit ? totalWords > limit : false },
-  })
-
-  for (const b of bars) {
-    b.band = bandLabelForMetric(b.key, b.position, b.raw)
-  }
-
-  return {
-    bars,
-    mostRepeated,
-    overall: result.overall,
-    percentile: result.percentile,
-    aiDetect: result.aiDetect,
-  }
+const wcInfo = (wc, limit) => {
+  if (!limit) return { tone: 'nolimit', text: 'No limit set' }
+  const pct = wc / limit
+  if (pct > 1) return { tone: 'over', text: 'Over the limit' }
+  if (pct < 0.85) return { tone: 'short', text: 'Under target' }
+  return { tone: 'ok', text: 'Within range' }
 }
 
-function ScoreBar({ label, position, band, onClick }) {
-  const markerLeft = Math.max(2, Math.min(98, position))
-  return (
-    <button className="sc-bar-row" onClick={onClick} aria-label={`${label}: ${band}. Click for details.`}>
-      <div className="sc-bar-label">{label}</div>
-      <div className="sc-bar-track">
-        <div className="sc-bar-zone sc-zone-low">Low</div>
-        <div className="sc-bar-zone sc-zone-med">Med</div>
-        <div className="sc-bar-zone sc-zone-high">High</div>
-        <div className="sc-bar-marker" style={{ left: `${markerLeft}%` }} aria-hidden="true" />
-      </div>
-      <div className="sc-bar-band">{band}</div>
-    </button>
-  )
-}
-
-function DrawerSpelling({ raw }) {
-  if (raw.count === 0) return <p className="sc-drawer-good">No spelling errors detected.</p>
+// Highlight a bad word in a sentence using simple case-insensitive indexOf (no regex, no backslashes)
+const highlight = (sentence, bad) => {
+  if (!sentence || !bad) return sentence || ''
+  const lower = sentence.toLowerCase()
+  const bLower = String(bad).toLowerCase()
+  const idx = lower.indexOf(bLower)
+  if (idx < 0) return sentence
+  const e = idx + bLower.length
   return (
     <>
-      <p className="sc-drawer-stat">{raw.count} spelling {raw.count === 1 ? 'error' : 'errors'} ({raw.perHundred} per 100 words)</p>
-      <ul className="sc-drawer-list">
-        {raw.items.slice(0, 12).map((it, i) => (
-          <li key={i}>
-            <span className="sc-wrong">"{it.word}"</span>
-            {it.suggestion ? <> {'\u2192'} <span className="sc-right">"{it.suggestion}"</span></> : null}
-            {it.sentence && <div className="sc-context">{it.sentence}</div>}
-          </li>
-        ))}
-        {raw.items.length > 12 && <li className="sc-more">{raw.items.length - 12} more</li>}
-      </ul>
+      {sentence.slice(0, idx)}
+      <mark className="sc-mark">{sentence.slice(idx, e)}</mark>
+      {sentence.slice(e)}
     </>
   )
 }
 
-function DrawerGrammar({ raw }) {
-  if (raw.count === 0) return <p className="sc-drawer-good">No grammar issues detected.</p>
+function DrawerSpelling({ result }) {
+  const items = result.details.spelling.items || []
+  const count = result.details.spelling.count || 0
+  if (count === 0) return <p className="sc-good-text">No spelling issues. Nice work.</p>
   return (
     <>
-      <p className="sc-drawer-stat">{raw.count} grammar {raw.count === 1 ? 'issue' : 'issues'} ({raw.perHundred} per 100 words)</p>
-      <ul className="sc-drawer-list">
-        {raw.items.slice(0, 12).map((it, i) => (
-          <li key={i}>
-            <span className="sc-issue-type">{it.type || 'Grammar'}:</span>{' '}
-            {it.bad ? (
-              <>
-                <span className="sc-wrong">"{it.bad}"</span>
-                {it.suggestion ? <> {'\u2192'} <span className="sc-right">"{it.suggestion}"</span></> : null}
-              </>
-            ) : (
-              <>"{it.text}"</>
-            )}
-            {it.sentence && <div className="sc-context">{it.sentence}</div>}
+      <p>You have {count} spelling {count === 1 ? 'issue' : 'issues'}. The wrong word is highlighted in each sentence below.</p>
+      <ul className="sc-mistake-list">
+        {items.slice(0, 12).map((it, i) => (
+          <li key={i} className="sc-mistake-item">
+            <div className="sc-mistake-sentence">{highlight(it.sentence, it.word)}</div>
+            <div className="sc-mistake-fix">
+              <span className="sc-bad">{it.word}</span>
+              <span className="sc-arrow">to</span>
+              <span className="sc-good">{it.suggestion || 'check spelling'}</span>
+            </div>
+          </li>
+        ))}
+      </ul>
+      <p className="sc-tip">Tip: Read your essay out loud once. Your ear catches typos your eye misses.</p>
+    </>
+  )
+}
+
+function DrawerGrammar({ result }) {
+  const items = result.details.mechanics.grammarIssues || []
+  if (items.length === 0) return <p className="sc-good-text">No grammar issues found. Nice work.</p>
+  return (
+    <>
+      <p>You have {items.length} grammar {items.length === 1 ? 'issue' : 'issues'}. The word or phrase to fix is highlighted in each sentence.</p>
+      <ul className="sc-mistake-list">
+        {items.slice(0, 12).map((it, i) => (
+          <li key={i} className="sc-mistake-item">
+            <div className="sc-mistake-sentence">{highlight(it.sentence || it.text, it.bad)}</div>
+            <div className="sc-mistake-fix">
+              <span className="sc-bad">{it.bad}</span>
+              <span className="sc-arrow">to</span>
+              <span className="sc-good">{it.suggestion || 'rephrase'}</span>
+            </div>
           </li>
         ))}
       </ul>
@@ -250,20 +98,25 @@ function DrawerGrammar({ raw }) {
   )
 }
 
-function DrawerSentenceLength({ raw }) {
+function DrawerSentence({ result }) {
+  const mean = Math.round(result.details.sentenceStats.mean || 0)
+  const pctLong = Math.round(result.details.sentenceStats.pctOver25 || 0)
+  const problematic = result.details.mechanics.problematic || []
   return (
     <>
-      <p className="sc-drawer-stat">Your average: <strong>{raw.mean} words</strong> per sentence</p>
-      <p className="sc-drawer-stat">Database average: {raw.baseline} words</p>
-      {raw.pctOver25 > 0 && <p className="sc-drawer-stat">{raw.pctOver25}% of your sentences are over 25 words</p>}
-      {raw.problematic && raw.problematic.length > 0 && (
+      <p>Your sentences are <strong>{mean} words</strong> long on average. Strong essays usually sit between 14 and 20 words.</p>
+      {mean < 12 && <p className="sc-tip">Your sentences are short. Combining a few related ideas adds rhythm and helps thoughts flow.</p>}
+      {mean >= 12 && mean <= 22 && <p className="sc-good-text">Your sentence length is in a healthy range.</p>}
+      {mean > 22 && <p className="sc-tip">Your sentences run long. Try breaking the longest ones into two so each idea lands harder.</p>}
+      {pctLong > 20 && <p>About {pctLong}% of your sentences run past 25 words, which can lose the reader.</p>}
+      {problematic.length > 0 && (
         <>
-          <p className="sc-drawer-section-title">Long sentences to fix:</p>
-          <ul className="sc-drawer-list">
-            {raw.problematic.slice(0, 4).map((p, i) => (
-              <li key={i}>
-                <em>"{p.text || p}"</em>
-                {p.length && <div className="sc-meta">Too long ({p.length} words)</div>}
+          <p className="sc-section-label">Sentences worth shortening</p>
+          <ul className="sc-mistake-list">
+            {problematic.slice(0, 4).map((p, i) => (
+              <li key={i} className="sc-mistake-item">
+                <div className="sc-mistake-sentence">{p.text}</div>
+                <div className="sc-meta">{p.length} words</div>
               </li>
             ))}
           </ul>
@@ -273,65 +126,57 @@ function DrawerSentenceLength({ raw }) {
   )
 }
 
-function DrawerIUsage({ raw }) {
+function DrawerIUsage({ result }) {
+  const per = Math.round(result.details.repetition.iPer100 || 0)
+  const total = result.details.repetition.totalIUsage || 0
   return (
     <>
-      <p className="sc-drawer-stat">Your "I" usage: <strong>{raw.perHundred}</strong> per 100 words</p>
-      <p className="sc-drawer-stat">Database average: {raw.baseline} per 100 words</p>
-      <p className="sc-drawer-tip">
-        {raw.perHundred > raw.baseline + 2
-          ? 'You\u2019re leaning heavy on "I". Try starting sentences with actions, observations, or other people.'
-          : raw.perHundred < raw.baseline - 1
-          ? 'You barely use "I". For a personal essay, more first-person voice usually feels more authentic.'
-          : 'Your "I" usage is balanced for a personal essay.'}
-      </p>
+      <p>You used the word "I" <strong>{total} times</strong>, which works out to {per} times per 100 words.</p>
+      {per > 6 && <p className="sc-tip">That is more than most students. Try opening some sentences with what you did, what you saw, or what mattered, instead of "I". For example, "Watching the sun set over the lake" sounds stronger than "I watched the sun set over the lake".</p>}
+      {per >= 3 && per <= 6 && <p className="sc-tip">A bit on the high side. Mix in a few sentences that lead with a thought, image, or action instead of "I".</p>}
+      {per < 3 && <p className="sc-good-text">Balanced. You are talking about yourself without overdoing it.</p>}
     </>
   )
 }
 
-function DrawerUniqueness({ raw }) {
-  if (raw.topSim >= 70) {
-    return (
-      <div className="sc-critical">
-        <div className="sc-critical-headline">Possible plagiarism / direct copy</div>
-        <p className="sc-critical-body">
-          This essay is {raw.topSim}% identical to a previously submitted essay in our database of {raw.totalCompared.toLocaleString()} essays.
-          Submitting copied work to a college is a serious integrity violation.
-        </p>
-      </div>
-    )
-  }
+function DrawerUniqueness({ result }) {
+  const sim = Math.round((result.details.similarity && result.details.similarity.matches && result.details.similarity.matches[0] && result.details.similarity.matches[0].similarity) || 0)
+  const compared = (result.details.similarity && result.details.similarity.totalCompared) || 0
   return (
     <>
-      <p className="sc-drawer-stat">Compared against <strong>{raw.totalCompared.toLocaleString()}</strong> past essays.</p>
-      <p className="sc-drawer-stat">Top similarity: <strong>{raw.topSim}%</strong></p>
-      <p className="sc-drawer-tip">
-        {raw.topSim < 20
-          ? 'Your essay reads as original. Specific personal details and unique vocabulary are working in your favor.'
-          : raw.topSim < 50
-          ? 'Some overlap with common essay patterns. Add more details that are uniquely yours.'
-          : 'Significant overlap with existing essays. Reframe the story with specifics no one else could write.'}
-      </p>
+      <p>We compared your essay against {compared.toLocaleString()} past essays. The closest one was <strong>{sim}% similar</strong>.</p>
+      {sim >= 70 && <p className="sc-tip sc-warn">Your essay sounds a lot like ones we have seen before. Cut common openings, generic adjectives, and clichés. Lead with something only you would write.</p>}
+      {sim >= 45 && sim < 70 && <p className="sc-tip">Some overlap with common essay patterns. Add specific details, names, sensory moments. The more specific, the more unique.</p>}
+      {sim < 45 && <p className="sc-good-text">Your essay reads as your own. Keep that voice.</p>}
     </>
   )
 }
 
-function DrawerPromptFit({ raw }) {
+function DrawerPrompt({ result }) {
+  const insights = result.insights
+  if (!insights || !insights.available) return <p>Prompt fit check is not available for this essay.</p>
+  const score = Math.round(insights.promptFitScore || 0)
+  const reasoning = insights.promptFitReasoning || ''
+  const missed = insights.missed
+  const missedItems = Array.isArray(missed) ? missed : (missed ? [missed] : [])
+  const topics = insights.topics || []
   return (
     <>
-      <p className="sc-drawer-stat">Prompt fit score: <strong>{raw.score}/100</strong></p>
-      {raw.reasoning && <p className="sc-drawer-tip"><em>{raw.reasoning}</em></p>}
-      {raw.missed && (
+      <p>Prompt fit score: <strong>{score} out of 100</strong></p>
+      {reasoning && <p>{reasoning}</p>}
+      {missedItems.length > 0 && (
         <>
-          <p className="sc-drawer-section-title">Not addressed:</p>
-          <p className="sc-drawer-tip">{raw.missed}</p>
+          <p className="sc-section-label">What you missed from the prompt</p>
+          <ul className="sc-bullet-list">
+            {missedItems.map((m, i) => <li key={i}>{m}</li>)}
+          </ul>
         </>
       )}
-      {raw.topics && raw.topics.length > 0 && (
+      {topics.length > 0 && (
         <>
-          <p className="sc-drawer-section-title">Your essay is about:</p>
-          <div className="sc-topic-pills">
-            {raw.topics.map((t, i) => <span key={i} className="sc-topic-pill">{t}</span>)}
+          <p className="sc-section-label">Topics you covered</p>
+          <div className="sc-chip-row">
+            {topics.map((t, i) => <span key={i} className="sc-chip-soft">{t}</span>)}
           </div>
         </>
       )}
@@ -339,381 +184,366 @@ function DrawerPromptFit({ raw }) {
   )
 }
 
-function DrawerWordCount({ raw }) {
-  if (!raw.limit) {
-    return <p className="sc-drawer-stat">{raw.words} words. No limit was set.</p>
-  }
-  return (
-    <>
-      <div className="sc-wc-grid">
-        <div className="sc-wc-cell">
-          <div className="sc-wc-num sc-wc-good">{raw.limit}</div>
-          <div className="sc-wc-lbl">Allowed</div>
-        </div>
-        <div className="sc-wc-cell">
-          <div className={'sc-wc-num ' + (raw.isOver ? 'sc-wc-bad' : 'sc-wc-good')}>{raw.words}</div>
-          <div className="sc-wc-lbl">Yours</div>
-        </div>
-      </div>
-      <p className="sc-drawer-tip">
-        {raw.isOver
-          ? `You're ${raw.words - raw.limit} words over the limit. Tighten or cut.`
-          : raw.words < raw.limit * 0.8
-          ? `You have ${raw.limit - raw.words} words of headroom.`
-          : 'You\u2019re comfortably within the limit.'}
-      </p>
-    </>
-  )
-}
+function exportPdf({ result, meta, bars, wcStatus, wc, limit, repeated, verdict, verdictDesc }) {
+  const pdf = new jsPDF({ orientation: 'portrait', unit: 'pt', format: 'a4' })
+  const pageW = pdf.internal.pageSize.getWidth()
+  const pageH = pdf.internal.pageSize.getHeight()
+  const M = 36
 
-const DRAWER_COMPONENTS = {
-  spelling: DrawerSpelling,
-  grammar: DrawerGrammar,
-  sentenceLength: DrawerSentenceLength,
-  iUsage: DrawerIUsage,
-  uniqueness: DrawerUniqueness,
-  promptFit: DrawerPromptFit,
-  wordCount: DrawerWordCount,
-}
-
-function Drawer({ activeBar, onClose }) {
-  useEffect(() => {
-    if (!activeBar) return
-    const onKey = (e) => { if (e.key === 'Escape') onClose() }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [activeBar, onClose])
-
-  if (!activeBar) return null
-  const Body = DRAWER_COMPONENTS[activeBar.key]
-  return (
-    <aside className="sc-drawer" role="dialog" aria-label={`${activeBar.label} details`}>
-      <div className="sc-drawer-hdr">
-        <div className="sc-drawer-title">{activeBar.label}</div>
-        <button className="sc-drawer-close" onClick={onClose} aria-label="Close details">{'\u2715'}</button>
-      </div>
-      <div className="sc-drawer-band-row">
-        <span className={'sc-drawer-band-pill ' + (activeBar.position >= 67 ? 'sc-pill-high' : activeBar.position >= 33 ? 'sc-pill-med' : 'sc-pill-low')}>
-          {activeBar.band}
-        </span>
-      </div>
-      <div className="sc-drawer-body">
-        {Body ? <Body raw={activeBar.raw} /> : <p>No details available.</p>}
-      </div>
-    </aside>
-  )
-}
-
-export default function Scorecard({ result, meta, onBack }) {
-  const [activeBar, setActiveBar] = useState(null)
-  const [downloading, setDownloading] = useState(false)
-  const sc = buildScorecard(result, meta)
-
-  const passed = result.overall >= 75
-
-  const handleDownload = useCallback(async () => {
-    if (downloading) return
-    setDownloading(true)
-    try {
-      await generateTwoPagePdf(sc, meta)
-    } catch (err) {
-      console.error('PDF failed:', err)
-      alert('PDF generation failed. Please try again.')
-    } finally {
-      setDownloading(false)
-    }
-  }, [sc, meta, downloading])
-
-  return (
-    <div className={'sc-shell ' + (activeBar ? 'sc-shell-drawer-open' : '')}>
-      <div className="sc-main">
-        <div className="sc-hdr">
-          <div className="sc-hdr-l">
-            <h2 className="sc-hdr-title">Essay feedback</h2>
-            <div className="sc-hdr-sub">Boomer Counselor</div>
-          </div>
-          <div className="sc-hdr-r">
-            {meta.college && <div className="sc-hdr-meta">{meta.college}</div>}
-            <div className="sc-hdr-meta">{meta.essayType}</div>
-            <div className="sc-hdr-meta">{meta.wordCount} words</div>
-            <div className="sc-hdr-meta">{new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</div>
-          </div>
-        </div>
-
-        <div className="sc-bars">
-          {sc.bars.map((b) => (
-            <ScoreBar
-              key={b.key}
-              label={b.label}
-              position={b.position}
-              band={b.band}
-              onClick={() => setActiveBar(b)}
-            />
-          ))}
-        </div>
-
-        <div className="sc-grid-row">
-          <div className="sc-card sc-most-repeated">
-            <div className="sc-card-title">Most repeated words</div>
-            {sc.mostRepeated.length === 0 ? (
-              <p className="sc-card-empty">Good variety.</p>
-            ) : (
-              <ol className="sc-mr-list">
-                {sc.mostRepeated.map((w, i) => (
-                  <li key={i}>
-                    <span className="sc-mr-word">"{w.word}"</span>
-                    <span className="sc-mr-count">{w.count}x</span>
-                  </li>
-                ))}
-              </ol>
-            )}
-          </div>
-
-          <div className="sc-card sc-overall">
-            <div className="sc-card-title">Overall score</div>
-            <div className="sc-overall-num">{result.overall}<span className="sc-overall-of">/100</span></div>
-            <div className="sc-overall-percentile">Better than {result.percentile}% of past essays</div>
-            {sc.aiDetect && sc.aiDetect.available && (
-              <div className={'sc-aimini ' + (sc.aiDetect.aiPercent >= 50 ? 'sc-aimini-warn' : 'sc-aimini-ok')}>
-                AI likelihood: <strong>{sc.aiDetect.aiPercent}%</strong>
-              </div>
-            )}
-          </div>
-        </div>
-
-        <div className={'sc-conclusion ' + (passed ? 'sc-conclusion-pass' : 'sc-conclusion-rewrite')}>
-          <div className="sc-conclusion-icon">{passed ? '\u2713' : '\u270E'}</div>
-          <div className="sc-conclusion-text">
-            <div className="sc-conclusion-title">
-              {passed ? 'Looks ready' : 'Go back and rewrite'}
-            </div>
-            <div className="sc-conclusion-body">
-              {passed
-                ? 'This essay is in good shape. Show it to your counselor for a final pass.'
-                : 'Use the feedback above to revise, then come back to re-analyze.'}
-            </div>
-          </div>
-        </div>
-
-        <div className="sc-actions">
-          <button className="sc-btn sc-btn-primary" onClick={handleDownload} disabled={downloading}>
-            {downloading ? 'Generating PDF...' : 'Download report (PDF)'}
-          </button>
-          <button className="sc-btn sc-btn-secondary" onClick={onBack}>Analyze another essay</button>
-        </div>
-      </div>
-
-      <Drawer activeBar={activeBar} onClose={() => setActiveBar(null)} />
-    </div>
-  )
-}
-
-async function generateTwoPagePdf(sc, meta) {
-  const pdf = new jsPDF({ orientation: 'p', unit: 'pt', format: 'a4' })
-  const W = pdf.internal.pageSize.getWidth()
-  const H = pdf.internal.pageSize.getHeight()
-  const M = 40
-
-  // PAGE 1: SCORECARD
-  pdf.setFillColor(26, 26, 26)
-  pdf.rect(0, 0, W, 70, 'F')
+  pdf.setFillColor(20, 20, 20)
+  pdf.roundedRect(M, M, pageW - 2 * M, 90, 14, 14, 'F')
   pdf.setTextColor(245, 240, 220)
   pdf.setFont('helvetica', 'bold')
   pdf.setFontSize(20)
-  pdf.text('Essay feedback report', M, 38)
+  pdf.text('Your Feedback from Boomer Counselor', M + 24, M + 36)
   pdf.setFont('helvetica', 'normal')
-  pdf.setFontSize(9)
-  pdf.setTextColor(200, 195, 175)
-  pdf.text('Boomer Counselor', M, 56)
-  pdf.setFontSize(9)
-  const dateStr = new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
-  let metaY = 30
-  if (meta.college) { pdf.text(meta.college, W - M, metaY, { align: 'right' }); metaY += 12 }
-  pdf.text(meta.essayType || '', W - M, metaY, { align: 'right' }); metaY += 12
-  pdf.text(`${meta.wordCount || 0} words / ${dateStr}`, W - M, metaY, { align: 'right' })
+  pdf.setFontSize(10)
+  pdf.text((meta.essayType || 'Essay') + (meta.college ? ' - ' + meta.college : ''), M + 24, M + 60)
+  pdf.text(wc + ' words   ' + new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }), M + 24, M + 76)
 
-  pdf.setTextColor(40, 40, 40)
-  let y = 100
-  for (const b of sc.bars) {
-    pdf.setFont('helvetica', 'bold')
-    pdf.setFontSize(11)
-    pdf.text(b.label, M, y)
-    drawBar(pdf, M + 130, y - 10, W - M * 2 - 130 - 90, 14, b.position)
+  let y = M + 90 + 32
+  pdf.setTextColor(20, 20, 20)
+  pdf.setFont('helvetica', 'bold')
+  pdf.setFontSize(13)
+  pdf.text('How your essay scores', M, y)
+  y += 22
+
+  const rowH = 50
+  bars.forEach((b) => {
     pdf.setFont('helvetica', 'normal')
+    pdf.setFontSize(11)
+    pdf.setTextColor(20, 20, 20)
+    pdf.text(b.label, M, y + 22)
+    const trackX = M + 180
+    const trackW = pageW - M - trackX - 130
+    const trackY = y + 12
+    const trackH = 20
+    const segW = trackW / 3
+    pdf.setFillColor(74, 144, 226)
+    pdf.roundedRect(trackX, trackY, segW, trackH, 10, 10, 'F')
+    pdf.setFillColor(245, 166, 35)
+    pdf.rect(trackX + segW, trackY, segW, trackH, 'F')
+    pdf.setFillColor(126, 211, 33)
+    pdf.roundedRect(trackX + 2 * segW, trackY, segW, trackH, 10, 10, 'F')
+    const mx = trackX + (b.pos / 100) * trackW
+    pdf.setFillColor(20, 20, 20)
+    pdf.rect(mx - 2, trackY - 3, 4, trackH + 6, 'F')
+    pdf.setFont('helvetica', 'bold')
     pdf.setFontSize(10)
-    pdf.setTextColor(80, 80, 80)
-    pdf.text(b.band, W - M - 85, y, { maxWidth: 80 })
-    pdf.setTextColor(40, 40, 40)
-    y += 30
-  }
+    pdf.text(b.status, trackX + trackW + 14, y + 22)
+    y += rowH
+  })
 
-  y += 10
-  const colW = (W - M * 2 - 20) / 2
+  const cy = y + 16
+  const cH = 130
+  const gap = 14
+  const cW = (pageW - 2 * M - 2 * gap) / 3
 
-  pdf.setFillColor(250, 247, 242)
-  pdf.roundedRect(M, y, colW, 130, 6, 6, 'F')
-  pdf.setFont('helvetica', 'bold')
-  pdf.setFontSize(11)
-  pdf.text('Most repeated words', M + 14, y + 22)
-  pdf.setFont('helvetica', 'normal')
-  pdf.setFontSize(10)
-  if (sc.mostRepeated.length === 0) {
-    pdf.setTextColor(60, 110, 60)
-    pdf.text('Good variety.', M + 14, y + 44)
-    pdf.setTextColor(40, 40, 40)
-  } else {
-    sc.mostRepeated.forEach((w, i) => {
-      pdf.text(`${i + 1}. "${w.word}"`, M + 14, y + 44 + i * 16)
-      pdf.setTextColor(120, 110, 90)
-      pdf.text(`${w.count}x`, M + colW - 24, y + 44 + i * 16, { align: 'right' })
-      pdf.setTextColor(40, 40, 40)
-    })
-  }
-
-  const rightX = M + colW + 20
-  pdf.setFillColor(255, 250, 232)
-  pdf.roundedRect(rightX, y, colW, 130, 6, 6, 'F')
-  pdf.setFont('helvetica', 'bold')
-  pdf.setFontSize(11)
-  pdf.text('Overall score', rightX + 14, y + 22)
-  pdf.setFontSize(34)
-  pdf.text(`${sc.overall}`, rightX + colW / 2, y + 70, { align: 'center' })
-  pdf.setFont('helvetica', 'normal')
-  pdf.setFontSize(10)
-  pdf.text('/ 100', rightX + colW / 2 + 30, y + 70)
+  pdf.setFillColor(245, 240, 230)
+  pdf.roundedRect(M, cy, cW, cH, 12, 12, 'F')
+  pdf.setTextColor(120, 100, 70)
   pdf.setFontSize(9)
-  pdf.setTextColor(110, 100, 80)
-  pdf.text(`Better than ${sc.percentile}% of past essays`, rightX + colW / 2, y + 92, { align: 'center' })
-  pdf.setTextColor(40, 40, 40)
-  if (sc.aiDetect && sc.aiDetect.available) {
-    pdf.setFontSize(9)
-    const isWarn = sc.aiDetect.aiPercent >= 50
-    pdf.setTextColor(isWarn ? 139 : 26, isWarn ? 30 : 110, isWarn ? 20 : 58)
-    pdf.text(`AI likelihood: ${sc.aiDetect.aiPercent}%`, rightX + colW / 2, y + 112, { align: 'center' })
-    pdf.setTextColor(40, 40, 40)
-  }
-  y += 145
-
-  const passed = sc.overall >= 75
-  pdf.setFillColor(passed ? 232 : 253, passed ? 245 : 236, passed ? 233 : 234)
-  pdf.setDrawColor(passed ? 100 : 192, passed ? 165 : 57, passed ? 100 : 43)
-  pdf.roundedRect(M, y, W - M * 2, 60, 6, 6, 'FD')
   pdf.setFont('helvetica', 'bold')
-  pdf.setFontSize(12)
-  pdf.setTextColor(passed ? 26 : 139, passed ? 110 : 30, passed ? 58 : 20)
-  pdf.text(passed ? 'Looks ready' : 'Go back and rewrite', M + 14, y + 24)
+  pdf.text('MOST REPEATED WORDS', M + 14, cy + 22)
+  pdf.setTextColor(20, 20, 20)
+  pdf.setFontSize(13)
   pdf.setFont('helvetica', 'normal')
+  const repWrap = pdf.splitTextToSize(repeated.text, cW - 28)
+  pdf.text(repWrap, M + 14, cy + 50)
+
+  const wcX = M + cW + gap
+  pdf.setFillColor(225, 240, 255)
+  pdf.roundedRect(wcX, cy, cW, cH, 12, 12, 'F')
+  pdf.setTextColor(50, 90, 160)
+  pdf.setFontSize(9)
+  pdf.setFont('helvetica', 'bold')
+  pdf.text('WORD COUNT', wcX + 14, cy + 22)
+  pdf.setTextColor(20, 20, 20)
+  pdf.setFontSize(30)
+  pdf.text(String(wc), wcX + 14, cy + 62)
   pdf.setFontSize(10)
-  pdf.setTextColor(60, 60, 60)
-  pdf.text(
-    passed ? 'This essay is in good shape. Show it to your counselor for a final pass.' : 'Use the feedback on page 2 to revise, then re-analyze.',
-    M + 14, y + 42, { maxWidth: W - M * 2 - 28 }
-  )
+  pdf.setFont('helvetica', 'normal')
+  pdf.setTextColor(80, 80, 80)
+  pdf.text('of ' + (limit || '-') + ' allowed', wcX + 14, cy + 82)
+  pdf.setFont('helvetica', 'bold')
+  pdf.setTextColor(20, 20, 20)
+  pdf.setFontSize(11)
+  pdf.text(wcStatus.text, wcX + 14, cy + 105)
 
-  pdf.setFontSize(8)
-  pdf.setTextColor(160, 150, 130)
-  pdf.text('Page 1 of 2  \u00b7  Detailed breakdown on next page', W / 2, H - 20, { align: 'center' })
+  const osX = M + 2 * (cW + gap)
+  pdf.setFillColor(255, 248, 220)
+  pdf.roundedRect(osX, cy, cW, cH, 12, 12, 'F')
+  pdf.setTextColor(140, 110, 60)
+  pdf.setFontSize(9)
+  pdf.setFont('helvetica', 'bold')
+  pdf.text('OVERALL SCORE', osX + 14, cy + 22)
+  pdf.setTextColor(20, 20, 20)
+  pdf.setFontSize(40)
+  pdf.text(String(Math.round(result.overall)), osX + 14, cy + 70)
+  pdf.setFontSize(11)
+  pdf.setFont('helvetica', 'normal')
+  pdf.setTextColor(120, 120, 120)
+  pdf.text('/100', osX + 70, cy + 70)
+  pdf.setFontSize(10)
+  pdf.setTextColor(80, 80, 80)
+  pdf.text('Better than ' + Math.round(result.percentile || 50) + '%', osX + 14, cy + 92)
+  pdf.text('of past essays', osX + 14, cy + 106)
 
-  // PAGE 2: DETAILS
-  pdf.addPage()
-  pdf.setTextColor(40, 40, 40)
+  const vy = cy + cH + 20
+  let bg = [232, 247, 232], fg = [30, 110, 50]
+  if (verdict === 'Almost there') { bg = [255, 245, 220]; fg = [140, 100, 30] }
+  if (verdict === 'Needs revision') { bg = [255, 235, 220]; fg = [180, 80, 30] }
+  if (verdict === 'Major rewrite needed') { bg = [255, 225, 225]; fg = [170, 40, 40] }
+  pdf.setFillColor(bg[0], bg[1], bg[2])
+  pdf.roundedRect(M, vy, pageW - 2 * M, 80, 12, 12, 'F')
+  pdf.setTextColor(fg[0], fg[1], fg[2])
   pdf.setFont('helvetica', 'bold')
   pdf.setFontSize(16)
-  pdf.text('Detailed breakdown', M, 50)
+  pdf.text(verdict, M + 18, vy + 28)
   pdf.setFont('helvetica', 'normal')
-  pdf.setFontSize(9)
-  pdf.setTextColor(120, 120, 120)
-  pdf.text('Detailed feedback for each metric on the scorecard.', M, 66)
-  pdf.setTextColor(40, 40, 40)
+  pdf.setFontSize(11)
+  pdf.setTextColor(50, 50, 50)
+  const vdWrap = pdf.splitTextToSize(verdictDesc, pageW - 2 * M - 36)
+  pdf.text(vdWrap, M + 18, vy + 50)
 
-  y = 90
-  for (const b of sc.bars) {
-    if (y > H - 80) { pdf.addPage(); y = 50 }
-    pdf.setFillColor(245, 240, 230)
-    pdf.rect(M, y - 12, W - M * 2, 22, 'F')
+  pdf.addPage()
+  let py = M + 10
+  pdf.setTextColor(20, 20, 20)
+  pdf.setFont('helvetica', 'bold')
+  pdf.setFontSize(20)
+  pdf.text('Detailed feedback', M, py + 24)
+  py += 56
+
+  const drawSection = (title, lines) => {
+    if (py > pageH - 80) return
     pdf.setFont('helvetica', 'bold')
-    pdf.setFontSize(11)
-    pdf.text(b.label, M + 8, y + 3)
+    pdf.setFontSize(13)
+    pdf.setTextColor(20, 20, 20)
+    pdf.text(title, M, py)
+    py += 20
     pdf.setFont('helvetica', 'normal')
-    pdf.setFontSize(9)
-    pdf.setTextColor(110, 100, 80)
-    pdf.text(b.band, W - M - 8, y + 3, { align: 'right' })
-    pdf.setTextColor(40, 40, 40)
-    y += 24
-    y = drawDetail(pdf, b, y, M, W)
-    y += 10
+    pdf.setFontSize(10.5)
+    pdf.setTextColor(50, 50, 50)
+    lines.forEach(line => {
+      const wrapped = pdf.splitTextToSize(line, pageW - 2 * M)
+      pdf.text(wrapped, M, py)
+      py += wrapped.length * 14 + 4
+    })
+    py += 18
   }
 
-  const safe = (meta.college || 'essay').replace(/\s+/g, '-').toLowerCase()
-  pdf.save(`essay-report-${safe}-${new Date().toISOString().slice(0, 10)}.pdf`)
+  const sc = result.details.spelling.count || 0
+  const spLines = sc === 0
+    ? ['No spelling issues. Nice work.']
+    : ['You have ' + sc + ' spelling ' + (sc === 1 ? 'issue' : 'issues') + '.',
+       ...(result.details.spelling.items || []).slice(0, 5).map(it => '  ' + it.word + '  to  ' + (it.suggestion || 'check spelling'))]
+  drawSection('Spelling', spLines)
+
+  const gIs = result.details.mechanics.grammarIssues || []
+  const grLines = gIs.length === 0
+    ? ['No grammar issues found.']
+    : ['You have ' + gIs.length + ' grammar ' + (gIs.length === 1 ? 'issue' : 'issues') + '.',
+       ...gIs.slice(0, 5).map(it => '  ' + it.bad + '  to  ' + (it.suggestion || 'rephrase'))]
+  drawSection('Grammar', grLines)
+
+  const sm = Math.round(result.details.sentenceStats.mean || 0)
+  drawSection('Sentence length', [
+    'Your sentences are ' + sm + ' words long on average.',
+    sm < 12 ? 'Combining related ideas adds rhythm.' : sm > 22 ? 'Break the longest ones into two for stronger impact.' : 'Healthy range. Strong essays sit between 14 and 20.'
+  ])
+
+  const ip = Math.round(result.details.repetition.iPer100 || 0)
+  drawSection('I usage', [
+    'You used the word I ' + ip + ' times per 100 words.',
+    ip > 6 ? 'More than most students. Open some sentences with action or thought instead.' : ip < 3 ? 'Balanced.' : 'Slightly high. Mix in some sentences that do not start with I.'
+  ])
+
+  const sim = Math.round((result.details.similarity && result.details.similarity.matches && result.details.similarity.matches[0] && result.details.similarity.matches[0].similarity) || 0)
+  drawSection('Uniqueness', [
+    'Closest match: ' + sim + '% similar to a past essay.',
+    sim >= 70 ? 'Sounds like essays we have seen before. Cut clichés. Lead with specifics.' : sim >= 45 ? 'Some overlap. Add specific details and sensory moments.' : 'Reads as your own. Keep that voice.'
+  ])
+
+  if (result.insights && result.insights.available && result.insights.hasPrompt) {
+    const sc2 = Math.round(result.insights.promptFitScore || 0)
+    const pLines = ['Prompt fit: ' + sc2 + ' out of 100.']
+    if (result.insights.promptFitReasoning) pLines.push(result.insights.promptFitReasoning)
+    if (result.insights.missed) {
+      const missArr = Array.isArray(result.insights.missed) ? result.insights.missed : [result.insights.missed]
+      missArr.slice(0, 3).forEach(m => pLines.push('  Missed: ' + m))
+    }
+    drawSection('Prompt fit', pLines)
+  }
+
+  pdf.save('essay-feedback-' + Date.now() + '.pdf')
 }
 
-function drawBar(pdf, x, y, w, h, position) {
-  const z = w / 3
-  pdf.setFillColor(74, 144, 226); pdf.rect(x, y, z, h, 'F')
-  pdf.setFillColor(245, 166, 35); pdf.rect(x + z, y, z, h, 'F')
-  pdf.setFillColor(123, 178, 90); pdf.rect(x + z * 2, y, z, h, 'F')
-  const mx = x + (position / 100) * w
-  pdf.setFillColor(20, 20, 20)
-  pdf.rect(mx - 1.5, y - 3, 3, h + 6, 'F')
-}
+export default function Scorecard({ result, meta, onBack }) {
+  const [openMetric, setOpenMetric] = useState(null)
 
-function drawDetail(pdf, b, y, M, W) {
-  const lineH = 13
-  const wrap = (txt, x, yy, max) => {
-    const lines = pdf.splitTextToSize(txt, max || (W - M * 2 - 16))
-    pdf.text(lines, x, yy)
-    return yy + lines.length * lineH
-  }
-  pdf.setFont('helvetica', 'normal')
-  pdf.setFontSize(10)
-  const x = M + 8
-  const max = W - M * 2 - 16
-  switch (b.key) {
-    case 'spelling':
-      if (b.raw.count === 0) { y = wrap('No spelling errors detected.', x, y, max); break }
-      y = wrap(`${b.raw.count} ${b.raw.count === 1 ? 'error' : 'errors'} (${b.raw.perHundred} per 100 words).`, x, y, max)
-      for (const it of b.raw.items.slice(0, 8)) {
-        y = wrap(`  \u2022 "${it.word}"${it.suggestion ? ' \u2192 "' + it.suggestion + '"' : ''}`, x, y, max)
-      }
-      if (b.raw.items.length > 8) y = wrap(`  \u2022 +${b.raw.items.length - 8} more`, x, y, max)
-      break
-    case 'grammar':
-      if (b.raw.count === 0) { y = wrap('No grammar issues detected.', x, y, max); break }
-      y = wrap(`${b.raw.count} ${b.raw.count === 1 ? 'issue' : 'issues'} (${b.raw.perHundred} per 100 words).`, x, y, max)
-      for (const it of b.raw.items.slice(0, 6)) {
-        const txt = it.bad ? `"${it.bad}"${it.suggestion ? ' \u2192 "' + it.suggestion + '"' : ''}` : `"${it.text || ''}"`
-        y = wrap(`  \u2022 ${it.type || 'Grammar'}: ${txt}`, x, y, max)
-      }
-      break
-    case 'sentenceLength':
-      y = wrap(`Your average: ${b.raw.mean} words per sentence (database average: ${b.raw.baseline}).`, x, y, max)
-      if (b.raw.pctOver25 > 0) y = wrap(`${b.raw.pctOver25}% of your sentences are over 25 words.`, x, y, max)
-      if (b.raw.problematic && b.raw.problematic.length) {
-        y = wrap('Long sentences to fix:', x, y, max)
-        for (const p of b.raw.problematic.slice(0, 3)) {
-          const t = p.text || p
-          y = wrap(`  \u2022 "${t.length > 120 ? t.slice(0, 120) + '\u2026' : t}"`, x, y, max)
-        }
-      }
-      break
-    case 'iUsage':
-      y = wrap(`Your "I" usage: ${b.raw.perHundred} per 100 words. Database average: ${b.raw.baseline}.`, x, y, max)
-      break
-    case 'uniqueness':
-      y = wrap(`Top similarity vs ${b.raw.totalCompared.toLocaleString()} past essays: ${b.raw.topSim}%.`, x, y, max)
-      if (b.raw.topSim >= 70) y = wrap('CRITICAL: Possible plagiarism. Do not submit this essay.', x, y, max)
-      break
-    case 'promptFit':
-      y = wrap(`Score: ${b.raw.score}/100`, x, y, max)
-      if (b.raw.reasoning) y = wrap(b.raw.reasoning, x, y, max)
-      if (b.raw.missed) y = wrap(`Not addressed: ${b.raw.missed}`, x, y, max)
-      if (b.raw.topics && b.raw.topics.length) y = wrap(`Topics in your essay: ${b.raw.topics.join(', ')}`, x, y, max)
-      break
-    case 'wordCount':
-      if (b.raw.limit) y = wrap(`${b.raw.words} words (allowed: ${b.raw.limit}).${b.raw.isOver ? ' OVER LIMIT.' : ''}`, x, y, max)
-      else y = wrap(`${b.raw.words} words. No limit set.`, x, y, max)
-      break
-  }
-  return y
+  useEffect(() => {
+    document.body.style.overflow = openMetric ? 'hidden' : ''
+    return () => { document.body.style.overflow = '' }
+  }, [openMetric])
+
+  useEffect(() => {
+    const onKey = (e) => { if (e.key === 'Escape') setOpenMetric(null) }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [])
+
+  const sCount = result.details.spelling.count || 0
+  const gCount = (result.details.mechanics.grammarIssues || []).length
+  const sentMean = result.details.sentenceStats.mean || 0
+  const iPer = result.details.repetition.iPer100 || 0
+  const simPct = (result.details.similarity && result.details.similarity.matches && result.details.similarity.matches[0] && result.details.similarity.matches[0].similarity) || 0
+  const promptScore = result.insights && result.insights.promptFitScore
+
+  const sPos = spellingPos(sCount)
+  const gPos = grammarPos(gCount)
+  const senPos = sentencePos(sentMean)
+  const iPos = iUsagePos(iPer)
+  const uPos = uniquenessPos(simPct)
+  const pPos = promptFitPos(promptScore)
+
+  const wc = meta.wordCount || 0
+  const limit = meta.limit || 0
+  const wcStatus = wcInfo(wc, limit)
+
+  const bars = [
+    { key: 'spelling', label: 'Spelling', pos: sPos, status: statusLabel('spelling', sPos) },
+    { key: 'grammar', label: 'Grammatical mistakes', pos: gPos, status: statusLabel('grammar', gPos) },
+    { key: 'sentence', label: 'Sentence length', pos: senPos, status: statusLabel('sentence', senPos, sentMean) },
+    { key: 'i-usage', label: '"I" usage', pos: iPos, status: statusLabel('i-usage', iPos) },
+    { key: 'uniqueness', label: 'Uniqueness', pos: uPos, status: statusLabel('uniqueness', uPos) },
+    { key: 'prompt', label: 'Does it answer the prompt', pos: pPos, status: statusLabel('prompt', pPos) },
+  ]
+
+  const overused = result.details.repetition.overused || []
+  const repeated = overused.length === 0
+    ? { text: 'Good variety', tone: 'good' }
+    : { text: overused.length + ' word' + (overused.length > 1 ? 's' : '') + ' repeat too often', tone: overused.length > 3 ? 'bad' : 'warn' }
+
+  const overall = Math.round(result.overall || 0)
+  const verdict = overall >= 80 ? 'Looks ready' : overall >= 65 ? 'Almost there' : overall >= 50 ? 'Needs revision' : 'Major rewrite needed'
+  const verdictDesc = verdict === 'Looks ready'
+    ? 'Your essay is in solid shape. Polish the small stuff and submit with confidence.'
+    : verdict === 'Almost there'
+    ? 'You are close. Fix the flagged items and read once aloud before submitting.'
+    : verdict === 'Needs revision'
+    ? 'Several things need work before this essay is ready. Use the suggestions on each metric.'
+    : 'This essay needs a meaningful rewrite. Focus on the prompt and your unique angle.'
+
+  const openLabel = openMetric ? bars.find(b => b.key === openMetric).label : ''
+
+  return (
+    <div className="sc-page">
+      <header className="sc-header">
+        <div className="sc-header-left">
+          <h1>Your Feedback from Boomer Counselor</h1>
+          <div className="sc-subhead">BOOMER COUNSELOR</div>
+        </div>
+        <div className="sc-header-right">
+          <div>{meta.essayType || 'Essay'}{meta.college ? ' - ' + meta.college : ''}</div>
+          <div>{wc} words</div>
+          <div>{new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</div>
+        </div>
+      </header>
+
+      <div className="sc-hint">
+        <span className="sc-hint-icon">i</span>
+        <span>Tap any metric below to see what it means and how to fix it</span>
+      </div>
+
+      <section className="sc-bars-card">
+        {bars.map(b => (
+          <button key={b.key} type="button" className="sc-bar-row" onClick={() => setOpenMetric(b.key)}>
+            <div className="sc-bar-label">{b.label}</div>
+            <div className="sc-bar-track">
+              <div className="sc-bar-zone sc-zone-low">LOW</div>
+              <div className="sc-bar-zone sc-zone-med">MED</div>
+              <div className="sc-bar-zone sc-zone-high">HIGH</div>
+              <div className="sc-bar-marker" style={{ left: b.pos + '%' }} />
+            </div>
+            <div className="sc-bar-status">{b.status}</div>
+            <div className="sc-bar-chev">›</div>
+          </button>
+        ))}
+      </section>
+
+      <section className="sc-cards-row">
+        <div className="sc-card sc-card-repeated">
+          <div className="sc-card-label">Most repeated words</div>
+          <div className={'sc-card-body sc-tone-' + repeated.tone}>{repeated.text}</div>
+          {overused.length > 0 && (
+            <div className="sc-chip-row">
+              {overused.slice(0, 6).map((w, i) => (
+                <span key={i} className="sc-chip">{w.word || w}</span>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className={'sc-card sc-card-wordcount sc-wc-' + wcStatus.tone}>
+          <div className="sc-card-label">Word count</div>
+          <div className="sc-wc-numbers">
+            <div className="sc-wc-cell">
+              <div className="sc-wc-num">{wc}</div>
+              <div className="sc-wc-sub">Yours</div>
+            </div>
+            <div className="sc-wc-divider" />
+            <div className="sc-wc-cell">
+              <div className="sc-wc-num">{limit || '-'}</div>
+              <div className="sc-wc-sub">Allowed</div>
+            </div>
+          </div>
+          <div className="sc-wc-status">{wcStatus.text}</div>
+        </div>
+
+        <div className="sc-card sc-card-overall">
+          <div className="sc-card-label">Overall score</div>
+          <div className="sc-overall-row">
+            <div className="sc-overall-num">{overall}</div>
+            <div className="sc-overall-denom">/100</div>
+          </div>
+          <div className="sc-overall-pct">Better than {Math.round(result.percentile || 50)}% of past essays</div>
+          {result.aiDetect && result.aiDetect.available && (
+            <div className={'sc-ai-badge sc-ai-' + (result.aiDetect.aiPercent > 60 ? 'high' : result.aiDetect.aiPercent > 30 ? 'med' : 'low')}>
+              AI likelihood: {Math.round(result.aiDetect.aiPercent)}%
+            </div>
+          )}
+        </div>
+      </section>
+
+      <section className={'sc-verdict sc-verdict-' + (overall >= 80 ? 'good' : overall >= 65 ? 'ok' : overall >= 50 ? 'low' : 'bad')}>
+        <h2>{verdict}</h2>
+        <p>{verdictDesc}</p>
+      </section>
+
+      <div className="sc-actions">
+        <button type="button" className="sc-btn-secondary" onClick={onBack}>Back to chat</button>
+        <button type="button" className="sc-btn-primary" onClick={() => exportPdf({ result, meta, bars, wcStatus, wc, limit, repeated, verdict, verdictDesc })}>Download PDF</button>
+      </div>
+
+      {openMetric && (
+        <>
+          <div className="sc-backdrop" onClick={() => setOpenMetric(null)} />
+          <aside className="sc-drawer" role="dialog" aria-modal="true">
+            <div className="sc-drawer-head">
+              <h3>{openLabel}</h3>
+              <button type="button" className="sc-drawer-close" onClick={() => setOpenMetric(null)} aria-label="Close">×</button>
+            </div>
+            <div className="sc-drawer-body">
+              {openMetric === 'spelling' && <DrawerSpelling result={result} />}
+              {openMetric === 'grammar' && <DrawerGrammar result={result} />}
+              {openMetric === 'sentence' && <DrawerSentence result={result} />}
+              {openMetric === 'i-usage' && <DrawerIUsage result={result} />}
+              {openMetric === 'uniqueness' && <DrawerUniqueness result={result} />}
+              {openMetric === 'prompt' && <DrawerPrompt result={result} />}
+            </div>
+          </aside>
+        </>
+      )}
+    </div>
+  )
 }
