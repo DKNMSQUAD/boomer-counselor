@@ -779,3 +779,32 @@ button { cursor: pointer; font-family: inherit; }
   .rc-conclusion { flex-direction: column; align-items: center; text-align: center; }
   .rc-fixes-list { text-align: left; }
 }
+
+/* Critical similarity / plagiarism warning */
+.rc-critical {
+  background: #fdecea;
+  border: 2px solid #c0392b;
+  border-radius: 6px;
+  padding: 10px 12px;
+  margin: 6px 0;
+}
+.rc-critical-headline {
+  font-size: 12px;
+  font-weight: 800;
+  color: #8b1e14;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+  margin-bottom: 4px;
+}
+.rc-critical-body {
+  font-size: 11px;
+  color: #5a1c14;
+  line-height: 1.5;
+}
+.rc-warn-suggestion {
+  font-size: 11px;
+  color: #8b1e14;
+  font-weight: 600;
+  margin-top: 6px;
+  line-height: 1.5;
+}

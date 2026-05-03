@@ -1385,10 +1385,21 @@ function ReportCard({ result, meta, onBack }) {
 
         {/* 6. ORIGINALITY */}
         <CheckSection title="6. Originality" ok={!details.similarity.checked || details.similarity.matches.length === 0 || details.similarity.matches[0].similarity < 20} okText={details.similarity.checked ? `Original (compared against ${details.similarity.totalCompared.toLocaleString()} past essays)` : 'Checking...'}>
-          {details.similarity.checked && details.similarity.matches.length > 0 && details.similarity.matches[0].similarity >= 20 && (
+          {details.similarity.checked && details.similarity.matches.length > 0 && details.similarity.matches[0].similarity >= 70 && (
+            <div className="rc-critical">
+              <div className="rc-critical-headline">Possible plagiarism / direct copy</div>
+              <div className="rc-critical-body">
+                This essay is {details.similarity.matches[0].similarity}% identical to a previously submitted {details.similarity.matches[0].type || 'essay'}
+                {details.similarity.matches[0].college ? ` for ${details.similarity.matches[0].college}` : ''}.
+                Submitting copied work to a college is a serious integrity violation and is grounds for application rejection.
+              </div>
+              <div className="rc-warn-suggestion">Write your own essay using your own experiences. Do not submit this version anywhere.</div>
+            </div>
+          )}
+          {details.similarity.checked && details.similarity.matches.length > 0 && details.similarity.matches[0].similarity >= 20 && details.similarity.matches[0].similarity < 70 && (
             <>
               <div className="rc-issue">
-                {details.similarity.matches[0].similarity}% similar to a previously submitted {details.similarity.matches[0].type || 'essay'}
+                <span className="rc-wrong">{details.similarity.matches[0].similarity}% similar</span> to a previously submitted {details.similarity.matches[0].type || 'essay'}
                 {details.similarity.matches[0].college ? ` for ${details.similarity.matches[0].college}` : ''}
               </div>
               <div className="rc-suggestion">Make your essay more unique. Use your own specific experiences and details.</div>
