@@ -72,8 +72,9 @@ export async function onRequestPost(context) {
     contents: [{ role: 'user', parts: [{ text: userText }] }],
     generationConfig: {
       temperature: 0.2,
-      maxOutputTokens: 500,
+      maxOutputTokens: 2000,
       responseMimeType: 'application/json',
+      thinkingConfig: { thinkingBudget: 0 },
     },
   }
 
