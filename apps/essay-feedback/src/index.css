@@ -838,3 +838,99 @@ button { cursor: pointer; font-family: inherit; }
   border-radius: 2px;
   font-style: normal;
 }
+
+/* AI Content Meter (Section 10, visual only) */
+.rc-aimeter-section {
+  margin-top: 10px;
+}
+.rc-aimeter-track {
+  position: relative;
+  height: 22px;
+  background: #f1ede4;
+  border: 1px solid #d6cdb4;
+  border-radius: 999px;
+  margin: 28px 0 6px 0;
+  overflow: visible;
+}
+.rc-aimeter-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #9bc66b 0%, #f5c14e 50%, #ed5b5b 100%);
+  background-size: 200% 100%;
+  background-position: 0 0;
+  transition: width 600ms ease;
+  max-width: 100%;
+}
+.rc-aimeter-pointer {
+  position: absolute;
+  top: -22px;
+  width: 14px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  pointer-events: none;
+}
+.rc-aimeter-pct {
+  font-size: 12px;
+  font-weight: 800;
+  color: #1a1a1a;
+  letter-spacing: 0.3px;
+  line-height: 1;
+  margin-bottom: 2px;
+  white-space: nowrap;
+}
+.rc-aimeter-arrow {
+  width: 0;
+  height: 0;
+  border-left: 6px solid transparent;
+  border-right: 6px solid transparent;
+  border-top: 7px solid #1a2540;
+}
+.rc-aimeter-labels {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  color: #6e6453;
+  margin-bottom: 10px;
+}
+.rc-aimeter-callout {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  margin-top: 6px;
+}
+.rc-aimeter-callout-warn {
+  background: #fdecea;
+  border: 1px solid #f0b0a8;
+  color: #8b1e14;
+}
+.rc-aimeter-callout-ok {
+  background: #e8f3e7;
+  border: 1px solid #b9d8b3;
+  color: #1a6e3a;
+}
+.rc-aimeter-callout-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.08);
+  font-weight: 800;
+  flex-shrink: 0;
+}
+.rc-aimeter-callout-text {
+  flex: 1;
+}
+.rc-aimeter-note {
+  font-size: 10px;
+  color: #8a7f72;
+  margin-top: 8px;
+  font-style: italic;
+  line-height: 1.5;
+}

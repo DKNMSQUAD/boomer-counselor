@@ -684,6 +684,24 @@ async function callTextGears(text) {
     return { spelling: [], grammar: [] }
   }
 }
+/* ================================================================
+   PRACTICAL CHECK 1B: AI CONTENT DETECTOR via RapidAPI
+   Visual signal only. Never affects the score.
+   ================================================================ */
+async function callAiDetect(text) {
+  try {
+    const res = await fetch('/api/aidetect', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text }),
+    })
+    if (!res.ok) return { available: false }
+    return await res.json()
+  } catch (e) {
+    console.warn('AI detector API unavailable:', e)
+    return { available: false }
+  }
+}
 
 /* ================================================================
    PRACTICAL CHECK 2: WORD REPETITION + "I" OVERUSE
@@ -1524,6 +1542,41 @@ function ReportCard({ result, meta, onBack }) {
           </div>
         )}
 
+        {/* AI CONTENT METER (visual only, does not affect score) */}
+        {result.aiDetect && result.aiDetect.available && (
+          <div className="rc-check rc-aimeter-section">
+            <div className="rc-check-hdr">
+              <span className="rc-check-title">10. AI content check</span>
+            </div>
+            <div className="rc-aimeter-track">
+              <div className="rc-aimeter-fill" style={{ width: result.aiDetect.aiPercent + '%' }} />
+              <div
+                className="rc-aimeter-pointer"
+                style={{ left: 'calc(' + result.aiDetect.aiPercent + '% - 7px)' }}
+                aria-hidden="true"
+              >
+                <div className="rc-aimeter-pct">{result.aiDetect.aiPercent}%</div>
+                <div className="rc-aimeter-arrow" />
+              </div>
+            </div>
+            <div className="rc-aimeter-labels">
+              <span>Human</span>
+              <span>AI</span>
+            </div>
+            <div className={'rc-aimeter-callout ' + (result.aiDetect.aiPercent >= 50 ? 'rc-aimeter-callout-warn' : 'rc-aimeter-callout-ok')}>
+              <span className="rc-aimeter-callout-icon">{result.aiDetect.aiPercent >= 50 ? '!' : '✓'}</span>
+              <span className="rc-aimeter-callout-text">
+                {result.aiDetect.aiPercent >= 50
+                  ? 'There is a ' + result.aiDetect.aiPercent + '% chance this text is written by AI'
+                  : 'This text appears to be human-written (' + result.aiDetect.humanPercent + '% human)'}
+              </span>
+            </div>
+            <div className="rc-aimeter-note">
+              Heuristic only. AI detectors can be wrong in both directions, so use this as a discussion prompt rather than a verdict.
+            </div>
+          </div>
+        )}
+
         {/* OVERALL SCORE */}
         <div className="rc-overall-box">
           <div className="rc-overall-score">{overall}<span className="rc-overall-of">/100</span></div>
@@ -1586,18 +1639,24 @@ export default function App() {
     const typeObj = ESSAY_TYPES.find(t => t.label === essayType)
     emitEvent('essay_submit', { action: 'submit', targetLabel: essayType, extraData: { essay_type: essayType, college, word_count: wordCount, question, essay_text: essay } })
 
-    // Call TextGears API for spelling + grammar (falls back to empty arrays on failure)
+    // Call TextGears + AI detector in parallel (both fall back gracefully)
     let tgSpelling = []
     let tgGrammar = []
+    let aiDetect = { available: false }
     try {
-      const tg = await callTextGears(essay)
+      const [tg, ai] = await Promise.all([
+        callTextGears(essay),
+        callAiDetect(essay),
+      ])
       tgSpelling = tg.spelling || []
       tgGrammar = tg.grammar || []
+      aiDetect = ai && typeof ai === 'object' ? ai : { available: false }
     } catch (err) {
-      console.warn('TextGears call failed, proceeding with local checks only:', err)
+      console.warn('External API call failed, proceeding with local checks only:', err)
     }
 
     const res = runAllChecks(essay, typeObj ? typeObj.id : 'commonapp', fingerprints, tgSpelling, tgGrammar)
+    res.aiDetect = aiDetect
     setResult(res)
     setAnalyzing(false)
     emitEvent('report_generated', { action: 'analyze', extraData: { overall: res.overall, scores: Object.fromEntries(res.checks.map(c => [c.key, c.score])) } })
