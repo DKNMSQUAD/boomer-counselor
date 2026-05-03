@@ -702,6 +702,41 @@ async function callAiDetect(text) {
     return { available: false }
   }
 }
+/* ================================================================
+   PRACTICAL CHECK 1C: SENTIMENT/TONE via TextGears
+   ================================================================ */
+async function callSentiment(text) {
+  try {
+    const res = await fetch('/api/sentiment', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text }),
+    })
+    if (!res.ok) return { available: false }
+    return await res.json()
+  } catch (e) {
+    console.warn('Sentiment API unavailable:', e)
+    return { available: false }
+  }
+}
+
+/* ================================================================
+   PRACTICAL CHECK 1D: TOPIC + PROMPT-FIT via Gemini
+   ================================================================ */
+async function callInsights(essay, prompt) {
+  try {
+    const res = await fetch('/api/insights', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ essay, prompt }),
+    })
+    if (!res.ok) return { available: false }
+    return await res.json()
+  } catch (e) {
+    console.warn('Insights API unavailable:', e)
+    return { available: false }
+  }
+}
 
 /* ================================================================
    PRACTICAL CHECK 2: WORD REPETITION + "I" OVERUSE
@@ -893,6 +928,174 @@ const SELF_PRAISE_PATTERNS = [
   /\bi\s+(?:am|'m)\s+capable\s+of\b/gi,
   /\bi\s+(?:am|'m)\s+ready\s+to\s+take\s+on\b/gi,
 ]
+
+/* ================================================================
+   READABILITY: Flesch-Kincaid Grade Level
+   College admissions essays land best at grade 9-11.
+   Below 8 reads juvenile. Above 13 reads stilted/academic.
+   ================================================================ */
+function countSyllables(word) {
+  word = word.toLowerCase().replace(/[^a-z]/g, '')
+  if (word.length === 0) return 0
+  if (word.length <= 3) return 1
+  // Strip silent endings
+  word = word.replace(/(?:[^laeiouy]es|ed|[^laeiouy]e)$/, '')
+  word = word.replace(/^y/, '')
+  const matches = word.match(/[aeiouy]{1,2}/g)
+  return matches ? matches.length : 1
+}
+
+function checkReadability(text) {
+  const sentences = text.split(/[.!?]+/).map(s => s.trim()).filter(s => s.length > 0)
+  const words = text.match(/[a-zA-Z']+/g) || []
+  const sentCount = Math.max(1, sentences.length)
+  const wordCount = words.length
+  if (wordCount < 30) {
+    return { available: false, reason: 'too_short' }
+  }
+  let totalSyllables = 0
+  let complexWords = 0
+  for (const w of words) {
+    const s = countSyllables(w)
+    totalSyllables += s
+    if (s >= 3) complexWords++
+  }
+  // Flesch-Kincaid Grade Level
+  const fkGrade = 0.39 * (wordCount / sentCount) + 11.8 * (totalSyllables / wordCount) - 15.59
+  // Flesch Reading Ease (0-100, higher = easier)
+  const fleschEase = 206.835 - 1.015 * (wordCount / sentCount) - 84.6 * (totalSyllables / wordCount)
+
+  let band, note
+  if (fkGrade < 8) {
+    band = 'too_simple'
+    note = 'Reads at a middle school level. Try varying sentence structure and using more precise vocabulary.'
+  } else if (fkGrade <= 11) {
+    band = 'ideal'
+    note = 'Right in the sweet spot for college admissions essays.'
+  } else if (fkGrade <= 13) {
+    band = 'slightly_high'
+    note = 'A little academic. Make sure your voice still sounds natural.'
+  } else {
+    band = 'too_complex'
+    note = 'Reads as overly academic or stilted. Simplify long sentences and avoid jargon to sound more authentic.'
+  }
+
+  return {
+    available: true,
+    fkGrade: Math.round(fkGrade * 10) / 10,
+    fleschEase: Math.round(fleschEase),
+    complexWords,
+    complexPct: Math.round((complexWords / wordCount) * 1000) / 10,
+    avgSentLen: Math.round((wordCount / sentCount) * 10) / 10,
+    avgSyllPerWord: Math.round((totalSyllables / wordCount) * 100) / 100,
+    band,
+    note,
+  }
+}
+
+/* ================================================================
+   VOCABULARY LEVEL: Dale-Chall-inspired difficulty score
+   Compares essay vocab against a list of common easy words.
+   Words OUTSIDE that list are considered difficult/advanced.
+   ================================================================ */
+// Curated common-word set (~3000 words known by 4th graders).
+// Smaller subset for bundle size, but still effective for ratio calculation.
+const COMMON_WORDS = new Set([
+  'a','about','above','across','after','again','against','all','almost','alone',
+  'along','already','also','although','always','am','among','an','and','another',
+  'any','anyone','anything','are','around','as','ask','at','away','back','bad',
+  'be','because','become','been','before','began','begin','being','below','best',
+  'better','between','big','both','bring','but','by','call','came','can','cannot',
+  'cant','car','care','carry','case','cause','change','child','children','city',
+  'class','clean','clear','close','cold','come','could','country','course','day',
+  'days','did','didnt','different','do','does','doesnt','doing','done','dont',
+  'door','down','draw','during','each','early','easy','eat','either','end','enough',
+  'even','ever','every','everyone','everything','example','eyes','face','fact',
+  'family','far','fast','father','feel','feet','few','find','fine','first','five',
+  'follow','food','for','found','four','friend','friends','from','full','game',
+  'gave','get','give','go','going','gone','good','got','great','green','group',
+  'grow','had','hand','hands','happen','happy','hard','has','have','having','he',
+  'head','hear','help','her','here','high','him','his','hold','home','hope','hour',
+  'hours','house','how','however','i','idea','if','important','in','inside','into',
+  'is','it','its','just','keep','kept','kind','know','knew','known','land','large',
+  'last','late','later','learn','leave','left','less','let','letter','life','light',
+  'like','line','little','live','long','look','looked','looking','lot','made','make',
+  'man','many','may','maybe','me','mean','men','might','mile','miles','mind','minute',
+  'miss','money','more','morning','most','mother','move','much','must','my','myself',
+  'name','near','need','never','new','next','night','no','none','not','nothing','now',
+  'number','of','off','often','old','on','once','one','only','open','or','other',
+  'others','our','out','over','own','page','part','party','people','perhaps','place',
+  'plan','play','please','point','possible','put','question','quite','rather','read',
+  'real','really','reason','red','remember','right','room','run','said','same','saw',
+  'say','school','second','see','seem','seemed','seen','sent','set','several','she',
+  'short','should','show','side','since','sit','six','small','so','some','someone',
+  'something','sometimes','soon','sound','special','spent','start','state','still',
+  'stop','story','street','study','such','suddenly','sure','table','take','taking',
+  'talk','tell','than','thank','that','the','their','them','themselves','then','there',
+  'these','they','thing','things','think','thought','three','through','time','times',
+  'to','today','together','told','too','took','town','trip','true','try','turn','two',
+  'under','until','up','upon','us','use','used','very','wait','walk','want','was',
+  'water','way','we','week','well','went','were','what','when','where','whether',
+  'which','while','who','whole','why','will','with','within','without','word','words',
+  'work','world','would','write','year','years','yes','yet','you','young','your',
+  // Pronouns and contractions
+  'im','ive','ill','id','dont','doesnt','didnt','wont','cant','wasnt','isnt','arent',
+  'havent','hasnt','hadnt','wouldnt','shouldnt','couldnt','its','thats','theyre',
+  'were','youre','hes','shes','weve','theyve','youve','well','theyll','youll',
+])
+
+function checkVocabulary(text) {
+  const words = (text.toLowerCase().match(/[a-z']+/g) || []).filter(w => w.length > 2)
+  const wordCount = words.length
+  if (wordCount < 30) return { available: false }
+
+  // Count unique advanced words
+  const seen = new Set()
+  let advancedCount = 0
+  let totalAdvanced = 0
+  for (const w of words) {
+    const cleaned = w.replace(/'/g, '')
+    if (!COMMON_WORDS.has(cleaned)) {
+      totalAdvanced++
+      if (!seen.has(cleaned)) {
+        advancedCount++
+        seen.add(cleaned)
+      }
+    }
+  }
+  const advancedPct = (totalAdvanced / wordCount) * 100
+  const uniqueRatio = advancedCount / wordCount
+
+  // Lexical diversity: unique words / total words (TTR)
+  const allUnique = new Set(words.map(w => w.replace(/'/g, '')))
+  const ttr = allUnique.size / wordCount
+
+  // Banding
+  // Typical strong college essay: ~15-30% advanced vocab, TTR > 0.55
+  let band, note
+  if (advancedPct < 8) {
+    band = 'too_simple'
+    note = 'Vocabulary is on the simpler side. Use more precise words where you can without forcing it.'
+  } else if (advancedPct <= 25) {
+    band = 'natural'
+    note = 'Vocabulary feels appropriate and natural for a college essay.'
+  } else if (advancedPct <= 35) {
+    band = 'rich'
+    note = 'Strong, varied vocabulary. Make sure each word feels earned, not thesaurus-pulled.'
+  } else {
+    band = 'overwrought'
+    note = 'Vocabulary may be too dense. Plain words can carry more weight than complex ones.'
+  }
+
+  return {
+    available: true,
+    advancedPct: Math.round(advancedPct * 10) / 10,
+    uniqueAdvanced: advancedCount,
+    lexicalDiversity: Math.round(ttr * 1000) / 1000,
+    band,
+    note,
+  }
+}
 
 function checkSubstance(text, wordCount) {
   const lower = text.toLowerCase()
@@ -1140,6 +1343,8 @@ function runAllChecks(text, essayTypeId, fingerprints, tgSpelling = [], tgGramma
   const negativeTalk = checkNegativeSelfTalk(text)
   const wordCount = (text.match(/\b[a-zA-Z']+\b/g) || []).length
   const substance = checkSubstance(text, wordCount)
+  const readability = checkReadability(text)
+  const vocabulary = checkVocabulary(text)
 
   // Sentence stats
   const sentences = splitSentences(text)
@@ -1288,7 +1493,7 @@ function runAllChecks(text, essayTypeId, fingerprints, tgSpelling = [], tgGramma
   return {
     checks, overall, percentile,
     details: {
-      spelling, mechanics, repetition, overboasting, negativeTalk, similarity,
+      spelling, mechanics, repetition, overboasting, negativeTalk, similarity, readability, vocabulary,
       sentenceStats: { mean: Math.round(mean * 10) / 10, pctOver25: Math.round(longRatio * 100), pctUnder6: Math.round(shortRatio * 100), baseline: 17.2 },
       severity: {
         flags: flaggedKeys,
@@ -1577,7 +1782,120 @@ function ReportCard({ result, meta, onBack }) {
           </div>
         )}
 
-        {/* OVERALL SCORE */}
+        {/* 11. READABILITY (local, always shows if essay >= 30 words) */}
+        {details.readability && details.readability.available && (
+          <div className="rc-check">
+            <div className="rc-check-hdr">
+              <span className="rc-check-title">11. Readability</span>
+              <span className={'rc-check-status ' + (details.readability.band === 'ideal' ? 'rc-check-ok' : 'rc-check-warn')}>
+                {details.readability.band === 'ideal' ? '✓ Right level' :
+                 details.readability.band === 'too_simple' ? 'Too simple' :
+                 details.readability.band === 'slightly_high' ? 'Slightly academic' :
+                 'Too complex'}
+              </span>
+            </div>
+            <div className="rc-stat">
+              Grade level: <strong>{details.readability.fkGrade}</strong> (target: 9 to 11 for college essays)
+            </div>
+            <div className="rc-stat">
+              Reading ease: {details.readability.fleschEase}/100. Avg sentence length: {details.readability.avgSentLen} words. Complex words: {details.readability.complexPct}%.
+            </div>
+            <div className="rc-suggestion">{details.readability.note}</div>
+          </div>
+        )}
+
+        {/* 12. VOCABULARY (local) */}
+        {details.vocabulary && details.vocabulary.available && (
+          <div className="rc-check">
+            <div className="rc-check-hdr">
+              <span className="rc-check-title">12. Vocabulary</span>
+              <span className={'rc-check-status ' + (details.vocabulary.band === 'natural' || details.vocabulary.band === 'rich' ? 'rc-check-ok' : 'rc-check-warn')}>
+                {details.vocabulary.band === 'natural' ? '✓ Natural' :
+                 details.vocabulary.band === 'rich' ? '✓ Strong' :
+                 details.vocabulary.band === 'too_simple' ? 'Simple' :
+                 'Overwrought'}
+              </span>
+            </div>
+            <div className="rc-stat">
+              Advanced vocabulary: <strong>{details.vocabulary.advancedPct}%</strong> ({details.vocabulary.uniqueAdvanced} unique uncommon words)
+            </div>
+            <div className="rc-stat">
+              Lexical diversity: {details.vocabulary.lexicalDiversity} (unique words / total words)
+            </div>
+            <div className="rc-suggestion">{details.vocabulary.note}</div>
+          </div>
+        )}
+
+        {/* 13. TONE (TextGears sentiment) */}
+        {result.sentiment && result.sentiment.available && (
+          <div className="rc-check">
+            <div className="rc-check-hdr">
+              <span className="rc-check-title">13. Tone</span>
+              <span className={'rc-check-status ' + ((result.sentiment.tone === 'positive' || result.sentiment.tone === 'mostly_positive' || result.sentiment.tone === 'balanced') ? 'rc-check-ok' : 'rc-check-warn')}>
+                {result.sentiment.tone === 'positive' ? '✓ Positive' :
+                 result.sentiment.tone === 'mostly_positive' ? '✓ Mostly positive' :
+                 result.sentiment.tone === 'balanced' ? '✓ Balanced' :
+                 result.sentiment.tone === 'detached' ? 'Detached' :
+                 result.sentiment.tone === 'mostly_negative' ? 'Negative-leaning' :
+                 'Negative'}
+              </span>
+            </div>
+            <div className="rc-stat">
+              Polarity: {result.sentiment.polarity > 0 ? '+' : ''}{result.sentiment.polarity} (scale: -1 negative, +1 positive)
+            </div>
+            <div className="rc-suggestion">
+              {(result.sentiment.tone === 'detached')
+                ? 'Reads as emotionally distant. Consider showing more of how moments actually felt.'
+                : (result.sentiment.tone === 'negative' || result.sentiment.tone === 'mostly_negative')
+                ? 'Tone leans negative. Admissions readers want to see growth and reflection, not just hardship.'
+                : 'Tone feels appropriate for an admissions essay.'}
+            </div>
+          </div>
+        )}
+
+        {/* 14. TOPICS (Gemini) */}
+        {result.insights && result.insights.available && result.insights.topics && result.insights.topics.length > 0 && (
+          <div className="rc-check">
+            <div className="rc-check-hdr">
+              <span className="rc-check-title">14. Topics detected</span>
+            </div>
+            <div className="rc-topic-pills">
+              {result.insights.topics.map((t, i) => (
+                <span key={i} className="rc-topic-pill">{t}</span>
+              ))}
+            </div>
+            <div className="rc-suggestion">
+              These are what the essay is actually about. If your intended message isn’t reflected here, your reader won’t see it either.
+            </div>
+          </div>
+        )}
+
+        {/* 15. PROMPT FIT (Gemini, only if prompt was provided) */}
+        {result.insights && result.insights.available && result.insights.hasPrompt && typeof result.insights.promptFitScore === 'number' && (
+          <div className="rc-check">
+            <div className="rc-check-hdr">
+              <span className="rc-check-title">15. Prompt fit</span>
+              <span className={'rc-check-status ' + (result.insights.promptFitScore >= 70 ? 'rc-check-ok' : result.insights.promptFitScore >= 40 ? 'rc-check-warn' : 'rc-check-warn')}>
+                {result.insights.promptFitScore >= 70 ? '✓ ' + result.insights.promptFitScore + '%' : result.insights.promptFitScore + '%'}
+              </span>
+            </div>
+            <div className="rc-stat">
+              How directly the essay answers the prompt as asked.
+            </div>
+            {result.insights.promptFitReasoning && (
+              <div className="rc-stat" style={{ marginTop: 4, fontStyle: 'italic' }}>
+                {result.insights.promptFitReasoning}
+              </div>
+            )}
+            {result.insights.missed && (
+              <div className="rc-suggestion">
+                <strong>Not addressed:</strong> {result.insights.missed}
+              </div>
+            )}
+          </div>
+        )}
+
+                {/* OVERALL SCORE */}
         <div className="rc-overall-box">
           <div className="rc-overall-score">{overall}<span className="rc-overall-of">/100</span></div>
           <div className="rc-overall-percentile">Better than {percentile}% of {details.similarity.totalCompared ? details.similarity.totalCompared.toLocaleString() : '6,804'} past essays</div>
@@ -1639,24 +1957,32 @@ export default function App() {
     const typeObj = ESSAY_TYPES.find(t => t.label === essayType)
     emitEvent('essay_submit', { action: 'submit', targetLabel: essayType, extraData: { essay_type: essayType, college, word_count: wordCount, question, essay_text: essay } })
 
-    // Call TextGears + AI detector in parallel (both fall back gracefully)
+    // Call all 4 external APIs in parallel; each falls back gracefully
     let tgSpelling = []
     let tgGrammar = []
     let aiDetect = { available: false }
+    let sentiment = { available: false }
+    let insights = { available: false }
     try {
-      const [tg, ai] = await Promise.all([
+      const [tg, ai, sent, ins] = await Promise.all([
         callTextGears(essay),
         callAiDetect(essay),
+        callSentiment(essay),
+        callInsights(essay, question),
       ])
       tgSpelling = tg.spelling || []
       tgGrammar = tg.grammar || []
       aiDetect = ai && typeof ai === 'object' ? ai : { available: false }
+      sentiment = sent && typeof sent === 'object' ? sent : { available: false }
+      insights = ins && typeof ins === 'object' ? ins : { available: false }
     } catch (err) {
       console.warn('External API call failed, proceeding with local checks only:', err)
     }
 
     const res = runAllChecks(essay, typeObj ? typeObj.id : 'commonapp', fingerprints, tgSpelling, tgGrammar)
     res.aiDetect = aiDetect
+    res.sentiment = sentiment
+    res.insights = insights
     setResult(res)
     setAnalyzing(false)
     emitEvent('report_generated', { action: 'analyze', extraData: { overall: res.overall, scores: Object.fromEntries(res.checks.map(c => [c.key, c.score])) } })

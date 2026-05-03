@@ -934,3 +934,38 @@ button { cursor: pointer; font-family: inherit; }
   font-style: italic;
   line-height: 1.5;
 }
+
+/* Section status pills (used in readability/vocab/tone/promptfit) */
+.rc-check-status {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 10px;
+  white-space: nowrap;
+}
+.rc-check-status.rc-check-ok {
+  color: #1a6e3a;
+  background: #e8f5e9;
+}
+.rc-check-status.rc-check-warn {
+  color: #8b1e14;
+  background: #fdecea;
+}
+
+/* Topic pills (Section 14) */
+.rc-topic-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 6px 0 8px 0;
+}
+.rc-topic-pill {
+  font-size: 11px;
+  font-weight: 600;
+  color: #4a3a1a;
+  background: #f7e9c4;
+  border: 1px solid #d4ba7a;
+  padding: 4px 10px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
