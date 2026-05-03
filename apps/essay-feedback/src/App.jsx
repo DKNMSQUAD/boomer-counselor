@@ -2,6 +2,7 @@ import { useState, useMemo, useEffect, useRef, useCallback } from 'react'
 import { emitEvent } from './bcEvents'
 import html2canvas from 'html2canvas'
 import { jsPDF } from 'jspdf'
+import Scorecard from './Scorecard.jsx'
 import './index.css'
 
 /* ================================================================
@@ -2001,7 +2002,7 @@ export default function App() {
           </div>
         </header>
         <main className="ef-report-page">
-          <ReportCard result={result} meta={{ essayType, college, wordCount, question }} onBack={() => setResult(null)} />
+          <Scorecard result={result} meta={{ essayType, college, wordCount, question, limit }} onBack={() => setResult(null)} />
         </main>
       </div>
     )
