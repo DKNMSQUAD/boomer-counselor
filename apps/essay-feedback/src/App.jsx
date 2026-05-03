@@ -1078,6 +1078,27 @@ function detectPredictableEnding(text) {
 /* ================================================================
    RUN ALL CHECKS
    ================================================================ */
+
+// Render a sentence with the target word visually highlighted.
+// Used in the report to show where each spelling/grammar issue occurred.
+function highlightInSentence(sentence, target) {
+  if (!sentence) return null
+  if (!target) return sentence
+  // Case-insensitive split, preserve original casing in the matched chunk
+  const idx = sentence.toLowerCase().indexOf(target.toLowerCase())
+  if (idx < 0) return sentence
+  const before = sentence.slice(0, idx)
+  const match = sentence.slice(idx, idx + target.length)
+  const after = sentence.slice(idx + target.length)
+  return (
+    <>
+      <span className="rc-ctx-text">{before}</span>
+      <span className="rc-ctx-hit">{match}</span>
+      <span className="rc-ctx-text">{after}</span>
+    </>
+  )
+}
+
 function runAllChecks(text, essayTypeId, fingerprints, tgSpelling = [], tgGrammar = []) {
   const mechanics = analyzeMechanics(text)
   const similarity = checkSimilarity(text, fingerprints)
@@ -1085,7 +1106,7 @@ function runAllChecks(text, essayTypeId, fingerprints, tgSpelling = [], tgGramma
   // Build spelling result from TextGears (or empty if API unavailable)
   const spelling = {
     count: tgSpelling.length,
-    items: tgSpelling.map(e => ({ word: e.bad, suggestion: e.suggestion || '' })),
+    items: tgSpelling.map(e => ({ word: e.bad, suggestion: e.suggestion || '', sentence: e.sentence || '' })),
   }
 
   // Override regex grammarIssues with TextGears grammar when available
@@ -1330,9 +1351,16 @@ function ReportCard({ result, meta, onBack }) {
         {/* 1. SPELLING */}
         <CheckSection title="1. Spelling" ok={details.spelling.count === 0} okText="No errors found">
           {details.spelling.count > 0 && details.spelling.items.map((item, i) => (
-            <div className="rc-issue" key={i}>
-              <span className="rc-wrong">"{item.word}"</span>
-              {item.suggestion ? <> {'\u2192'} <span className="rc-right">"{item.suggestion}"</span></> : ' - check spelling'}
+            <div className="rc-spell-item" key={i}>
+              <div className="rc-issue">
+                <span className="rc-wrong">"{item.word}"</span>
+                {item.suggestion ? <> {'\u2192'} <span className="rc-right">"{item.suggestion}"</span></> : ' - check spelling'}
+              </div>
+              {item.sentence && (
+                <div className="rc-context">
+                  {highlightInSentence(item.sentence, item.word)}
+                </div>
+              )}
             </div>
           ))}
         </CheckSection>
@@ -1340,8 +1368,23 @@ function ReportCard({ result, meta, onBack }) {
         {/* 2. GRAMMAR */}
         <CheckSection title="2. Grammar" ok={details.mechanics.grammarIssues.length === 0} okText="No issues found">
           {details.mechanics.grammarIssues.length > 0 && details.mechanics.grammarIssues.slice(0, 8).map((item, i) => (
-            <div className="rc-issue" key={i}>
-              <span className="rc-issue-type">{item.type}:</span> "{item.text}"
+            <div className="rc-spell-item" key={i}>
+              <div className="rc-issue">
+                <span className="rc-issue-type">{item.type || 'Grammar'}:</span>{' '}
+                {item.bad ? (
+                  <>
+                    <span className="rc-wrong">"{item.bad}"</span>
+                    {item.suggestion ? <> {'→'} <span className="rc-right">"{item.suggestion}"</span></> : null}
+                  </>
+                ) : (
+                  <>"{item.text}"</>
+                )}
+              </div>
+              {item.sentence && (
+                <div className="rc-context">
+                  {highlightInSentence(item.sentence, item.bad)}
+                </div>
+              )}
             </div>
           ))}
         </CheckSection>

@@ -808,3 +808,33 @@ button { cursor: pointer; font-family: inherit; }
   margin-top: 6px;
   line-height: 1.5;
 }
+
+/* Spelling/grammar item with surrounding sentence context */
+.rc-spell-item {
+  margin-bottom: 8px;
+}
+.rc-spell-item:last-child {
+  margin-bottom: 0;
+}
+.rc-context {
+  font-size: 11px;
+  color: #6e6453;
+  background: #f3ede0;
+  border-left: 3px solid #c9b88a;
+  padding: 5px 8px;
+  margin-top: 3px;
+  margin-left: 8px;
+  line-height: 1.5;
+  font-style: italic;
+}
+.rc-ctx-text {
+  color: #6e6453;
+}
+.rc-ctx-hit {
+  background: #f7d97a;
+  color: #5a3a00;
+  font-weight: 700;
+  padding: 0 2px;
+  border-radius: 2px;
+  font-style: normal;
+}
