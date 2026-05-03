@@ -186,6 +186,25 @@
       background: #F5F5F5; color: #666;
       border: 1px solid #999;
     }
+    .dropdown-item .pill.premium {
+      background: linear-gradient(135deg, #FFD700 0%, #FFA500 50%, #B8860B 100%);
+      color: #4A2D00;
+      border: 1px solid #8B6508;
+      display: inline-flex;
+      align-items: center;
+      box-shadow: 0 1px 2px rgba(184, 134, 11, 0.4);
+      text-shadow: 0 1px 0 rgba(255, 255, 255, 0.3);
+    }
+    .dropdown-item.premium-locked {
+      cursor: not-allowed;
+    }
+    .dropdown-item.premium-locked:hover {
+      background: #FFFCF2;
+    }
+    .dropdown-item.premium-locked .label {
+      color: #8B6508;
+      font-weight: 700;
+    }
 
     .google-btn {
       background: #FDB515;
@@ -531,7 +550,7 @@
     { id: 'profile',      label: 'Building Your Profile',         url: '/profile/' },
     { id: 'college',      label: 'Choosing The Right College',    url: '/college-search/' },
     { id: 'tutor-counselor', label: 'Find a Tutor or Counselor',     url: '/tutor-counselor/' },
-    { id: 'scholarships', label: 'Scholarship Search',         url: null },
+    { id: 'scholarships', label: 'Scholarship Search',         url: null, premium: true },
     { id: 'essays',       label: 'Essay Feedback',             url: '/essay-feedback/' }
   ];
 
@@ -559,14 +578,25 @@
   // Populate dropdown
   options.forEach(opt => {
     const el = document.createElement('div');
-    el.className = 'dropdown-item' + (opt.url ? '' : ' disabled');
+    let cls = 'dropdown-item';
+    if (opt.premium) cls += ' premium-locked';
+    else if (!opt.url) cls += ' disabled';
+    el.className = cls;
     el.setAttribute('role', 'option');
-    el.innerHTML = `
-      <span class="label">${opt.label}</span>
-      <span class="pill ${opt.url ? 'ready' : 'soon'}">${opt.url ? 'Ready' : 'Soon'}</span>
-    `;
+    let pillHtml;
+    if (opt.premium) {
+      pillHtml = '<span class="pill premium"><svg viewBox="0 0 12 12" width="10" height="10" aria-hidden="true" style="vertical-align:-1px;margin-right:3px;"><path fill="currentColor" d="M3.5 5V3.5a2.5 2.5 0 0 1 5 0V5h.5a1 1 0 0 1 1 1v4a1 1 0 0 1-1 1h-6a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1h.5zm1 0h3V3.5a1.5 1.5 0 0 0-3 0V5z"/></svg>Premium</span>';
+    } else if (opt.url) {
+      pillHtml = '<span class="pill ready">Ready</span>';
+    } else {
+      pillHtml = '<span class="pill soon">Soon</span>';
+    }
+    el.innerHTML = '<span class="label">' + opt.label + '</span>' + pillHtml;
     el.addEventListener('click', (e) => {
       e.stopPropagation();
+      // Premium-locked: do nothing on click. Item stays visible and the
+      // dropdown stays open so the user can pick something else.
+      if (opt.premium) return;
       selectOption(opt);
     });
     menu.appendChild(el);
