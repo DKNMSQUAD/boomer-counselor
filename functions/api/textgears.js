@@ -142,15 +142,13 @@ function extractSentence(text, offset, bad) {
   let start = offset
   while (start > 0) {
     const c = text[start - 1]
-    if (c === '.' || c === '!' || c === '?' || c === '
-') break
+    if (c === '.' || c === '!' || c === '?' || c === '\n') break
     start--
   }
   let end = offset
   while (end < text.length) {
     const c = text[end]
-    if (c === '.' || c === '!' || c === '?' || c === '
-') {
+    if (c === '.' || c === '!' || c === '?' || c === '\n') {
       end++
       break
     }
