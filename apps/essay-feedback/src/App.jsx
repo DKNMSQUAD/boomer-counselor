@@ -1228,9 +1228,10 @@ function runAllChecks(text, essayTypeId, fingerprints, tgSpelling = [], tgGramma
   const overall = Math.max(0, Math.min(100, Math.round(score)))
 
   // Percentile (normal distribution, mean=72, stddev=12)
+  // High score => high percentile. Display: 'Better than X% of past essays'
   const zScore = (overall - 72) / 12
   const percentile = Math.min(99, Math.max(1, Math.round(
-    (1 / (1 + Math.exp(-1.7 * zScore))) * 100
+    100 / (1 + Math.exp(-1.7 * zScore))
   )))
 
   // Build checks array for display (individual scores not used for overall, just for reference)
@@ -1452,7 +1453,7 @@ function ReportCard({ result, meta, onBack }) {
                   ))}
                 </div>
                 <div style={{ fontSize: '13px', color: '#0a7a2f', marginTop: '6px' }}>
-                  Don't tell us you're hardworking , show a moment that proves it.
+                  Don't tell us you're hardworking. Show a moment that proves it.
                 </div>
               </div>
             )}
@@ -1472,7 +1473,7 @@ function ReportCard({ result, meta, onBack }) {
         {/* OVERALL SCORE */}
         <div className="rc-overall-box">
           <div className="rc-overall-score">{overall}<span className="rc-overall-of">/100</span></div>
-          <div className="rc-overall-percentile">Top {100 - percentile}% compared to {details.similarity.totalCompared ? details.similarity.totalCompared.toLocaleString() : '6,804'} past essays</div>
+          <div className="rc-overall-percentile">Better than {percentile}% of {details.similarity.totalCompared ? details.similarity.totalCompared.toLocaleString() : '6,804'} past essays</div>
         </div>
 
         {/* VERDICT */}
