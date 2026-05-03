@@ -1335,7 +1335,10 @@ function runAllChecks(text, essayTypeId, fingerprints, tgSpelling = [], tgGramma
   if (tgGrammar.length > 0) {
     mechanics.grammarIssues = tgGrammar.map(e => ({
       type: e.description || 'Grammar issue',
-      text: e.bad + (e.suggestion ? ' \u2192 ' + e.suggestion : ''),
+      bad: e.bad || '',
+      suggestion: e.suggestion || '',
+      sentence: e.sentence || '',
+      text: (e.bad || '') + (e.suggestion ? ' to ' + e.suggestion : ''),
     }))
   }
 

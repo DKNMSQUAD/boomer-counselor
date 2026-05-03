@@ -974,10 +974,12 @@ button { cursor: pointer; font-family: inherit; }
 /* ===== Scorecard v3 (overlay drawer + 3-card row + plain language) ===== */
 .sc-page {
   font-family: 'JetBrains Mono', 'Fira Code', Menlo, monospace;
-  max-width: 980px;
-  margin: 0 auto;
-  padding: 24px 20px 60px;
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  padding: 24px 32px 60px;
   color: #1a1a1a;
+  box-sizing: border-box;
 }
 .sc-header {
   background: #161616;

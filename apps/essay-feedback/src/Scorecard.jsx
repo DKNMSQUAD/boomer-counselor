@@ -79,21 +79,39 @@ function DrawerSpelling({ result }) {
 function DrawerGrammar({ result }) {
   const items = result.details.mechanics.grammarIssues || []
   if (items.length === 0) return <p className="sc-good-text">No grammar issues found. Nice work.</p>
+  const rich = items.filter(it => it && it.bad && it.suggestion)
+  const textOnly = items.filter(it => it && !(it.bad && it.suggestion) && (it.text || it.type))
   return (
     <>
-      <p>You have {items.length} grammar {items.length === 1 ? 'issue' : 'issues'}. The word or phrase to fix is highlighted in each sentence.</p>
-      <ul className="sc-mistake-list">
-        {items.slice(0, 12).map((it, i) => (
-          <li key={i} className="sc-mistake-item">
-            <div className="sc-mistake-sentence">{highlight(it.sentence || it.text, it.bad)}</div>
-            <div className="sc-mistake-fix">
-              <span className="sc-bad">{it.bad}</span>
-              <span className="sc-arrow">to</span>
-              <span className="sc-good">{it.suggestion || 'rephrase'}</span>
-            </div>
-          </li>
-        ))}
-      </ul>
+      <p>You have {items.length} grammar {items.length === 1 ? 'issue' : 'issues'}.</p>
+      {rich.length > 0 && (
+        <ul className="sc-mistake-list">
+          {rich.slice(0, 12).map((it, i) => (
+            <li key={'r' + i} className="sc-mistake-item">
+              <div className="sc-mistake-sentence">{it.sentence ? highlight(it.sentence, it.bad) : <em>{it.bad}</em>}</div>
+              <div className="sc-mistake-fix">
+                <span className="sc-bad">{it.bad}</span>
+                <span className="sc-arrow">to</span>
+                <span className="sc-good">{it.suggestion}</span>
+              </div>
+              {it.type && <div className="sc-meta">{it.type}</div>}
+            </li>
+          ))}
+        </ul>
+      )}
+      {textOnly.length > 0 && (
+        <>
+          <p className="sc-section-label">Other patterns to review</p>
+          <ul className="sc-mistake-list">
+            {textOnly.slice(0, 8).map((it, i) => (
+              <li key={'t' + i} className="sc-mistake-item">
+                <div className="sc-mistake-sentence">{it.text ? <em>{it.text}</em> : null}</div>
+                <div className="sc-meta">{it.type || 'Phrasing'}</div>
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
     </>
   )
 }
@@ -208,29 +226,47 @@ function exportPdf({ result, meta, bars, wcStatus, wc, limit, repeated, verdict,
   pdf.text('How your essay scores', M, y)
   y += 22
 
-  const rowH = 50
+  const rowH = 56
   bars.forEach((b) => {
     pdf.setFont('helvetica', 'normal')
     pdf.setFontSize(11)
-    pdf.setTextColor(20, 20, 20)
-    pdf.text(b.label, M, y + 22)
-    const trackX = M + 180
-    const trackW = pageW - M - trackX - 130
-    const trackY = y + 12
-    const trackH = 20
-    const segW = trackW / 3
-    pdf.setFillColor(74, 144, 226)
-    pdf.roundedRect(trackX, trackY, segW, trackH, 10, 10, 'F')
-    pdf.setFillColor(245, 166, 35)
-    pdf.rect(trackX + segW, trackY, segW, trackH, 'F')
-    pdf.setFillColor(126, 211, 33)
-    pdf.roundedRect(trackX + 2 * segW, trackY, segW, trackH, 10, 10, 'F')
+    pdf.setTextColor(30, 30, 30)
+    pdf.text(b.label, M, y + 26)
+
+    const trackX = M + 200
+    const trackW = pageW - M - trackX - 140
+    const trackY = y + 26
+
+    pdf.setDrawColor(210, 210, 210)
+    pdf.setLineWidth(1.5)
+    pdf.line(trackX, trackY, trackX + trackW, trackY)
+
+    pdf.setDrawColor(170, 170, 170)
+    pdf.setLineWidth(0.7)
+    const ticks = [0, 1/3, 2/3, 1]
+    ticks.forEach(t => {
+      pdf.line(trackX + t * trackW, trackY - 3, trackX + t * trackW, trackY + 3)
+    })
+
+    pdf.setFontSize(7.5)
+    pdf.setTextColor(160, 160, 160)
+    pdf.text('LOW', trackX + trackW * (1/6) - 6, trackY + 14)
+    pdf.text('MED', trackX + trackW * (3/6) - 6, trackY + 14)
+    pdf.text('HIGH', trackX + trackW * (5/6) - 8, trackY + 14)
+
     const mx = trackX + (b.pos / 100) * trackW
-    pdf.setFillColor(20, 20, 20)
-    pdf.rect(mx - 2, trackY - 3, 4, trackH + 6, 'F')
+    const col = b.pos < 33 ? [194, 71, 71] : b.pos < 67 ? [217, 154, 56] : [88, 158, 92]
+    pdf.setFillColor(col[0], col[1], col[2])
+    pdf.circle(mx, trackY, 4.5, 'F')
+    pdf.setDrawColor(255, 255, 255)
+    pdf.setLineWidth(1)
+    pdf.circle(mx, trackY, 4.5, 'S')
+
     pdf.setFont('helvetica', 'bold')
-    pdf.setFontSize(10)
-    pdf.text(b.status, trackX + trackW + 14, y + 22)
+    pdf.setFontSize(11)
+    pdf.setTextColor(col[0], col[1], col[2])
+    pdf.text(b.status, trackX + trackW + 18, y + 30)
+
     y += rowH
   })
 
@@ -333,35 +369,44 @@ function exportPdf({ result, meta, bars, wcStatus, wc, limit, repeated, verdict,
   }
 
   const sc = result.details.spelling.count || 0
-  const spLines = sc === 0
-    ? ['No spelling issues. Nice work.']
-    : ['You have ' + sc + ' spelling ' + (sc === 1 ? 'issue' : 'issues') + '.',
-       ...(result.details.spelling.items || []).slice(0, 5).map(it => '  ' + it.word + '  to  ' + (it.suggestion || 'check spelling'))]
-  drawSection('Spelling', spLines)
+  const spItems = sc > 0
+    ? (result.details.spelling.items || [])
+        .filter(it => it && it.word)
+        .slice(0, 10)
+        .map(it => '  ' + it.word + (it.suggestion ? ' should be ' + it.suggestion : ''))
+    : []
+  drawSection('Spelling', sc === 0 ? ['No spelling issues found.'] : ['Found ' + sc + ' spelling ' + (sc === 1 ? 'issue' : 'issues') + ':', ...spItems])
 
   const gIs = result.details.mechanics.grammarIssues || []
-  const grLines = gIs.length === 0
-    ? ['No grammar issues found.']
-    : ['You have ' + gIs.length + ' grammar ' + (gIs.length === 1 ? 'issue' : 'issues') + '.',
-       ...gIs.slice(0, 5).map(it => '  ' + it.bad + '  to  ' + (it.suggestion || 'rephrase'))]
-  drawSection('Grammar', grLines)
+  const gItems = gIs
+    .filter(it => it && (it.bad || it.text))
+    .slice(0, 10)
+    .map(it => {
+      if (it.bad && it.suggestion) return '  ' + it.bad + ' should be ' + it.suggestion + (it.type ? '   (' + it.type + ')' : '')
+      if (it.text) return '  ' + (it.type ? it.type + ': ' : '') + it.text
+      return ''
+    })
+    .filter(line => line.length > 0)
+  drawSection('Grammar', gIs.length === 0 ? ['No grammar issues found.'] : ['Found ' + gIs.length + ' grammar ' + (gIs.length === 1 ? 'issue' : 'issues') + ':', ...gItems])
 
   const sm = Math.round(result.details.sentenceStats.mean || 0)
   drawSection('Sentence length', [
-    'Your sentences are ' + sm + ' words long on average.',
-    sm < 12 ? 'Combining related ideas adds rhythm.' : sm > 22 ? 'Break the longest ones into two for stronger impact.' : 'Healthy range. Strong essays sit between 14 and 20.'
+    'Your sentences average ' + sm + ' words. Strong essays usually sit between 14 and 20 words.',
+    sm < 12 ? 'Combining related ideas adds rhythm.' : sm > 22 ? 'Break the longest ones into two for stronger impact.' : 'Length is in a healthy range.'
   ])
 
   const ip = Math.round(result.details.repetition.iPer100 || 0)
+  const iTotal = result.details.repetition.totalIUsage || 0
   drawSection('I usage', [
-    'You used the word I ' + ip + ' times per 100 words.',
-    ip > 6 ? 'More than most students. Open some sentences with action or thought instead.' : ip < 3 ? 'Balanced.' : 'Slightly high. Mix in some sentences that do not start with I.'
+    'You used the word I ' + iTotal + ' times, which is ' + ip + ' times per 100 words.',
+    ip > 6 ? 'More than most students. Open some sentences with action or thought instead.' : ip < 3 ? 'Balanced. You are talking about yourself without overdoing it.' : 'Slightly high. Mix in some sentences that do not start with I.'
   ])
 
   const sim = Math.round((result.details.similarity && result.details.similarity.matches && result.details.similarity.matches[0] && result.details.similarity.matches[0].similarity) || 0)
+  const compared = (result.details.similarity && result.details.similarity.totalCompared) || 0
   drawSection('Uniqueness', [
-    'Closest match: ' + sim + '% similar to a past essay.',
-    sim >= 70 ? 'Sounds like essays we have seen before. Cut clichés. Lead with specifics.' : sim >= 45 ? 'Some overlap. Add specific details and sensory moments.' : 'Reads as your own. Keep that voice.'
+    'Compared against ' + compared.toLocaleString() + ' past essays. Closest match was ' + sim + '% similar.',
+    sim >= 70 ? 'Sounds like essays we have seen before. Cut clichés and lead with specifics.' : sim >= 45 ? 'Some overlap. Add specific details and sensory moments.' : 'Reads as your own. Keep that voice.'
   ])
 
   if (result.insights && result.insights.available && result.insights.hasPrompt) {
