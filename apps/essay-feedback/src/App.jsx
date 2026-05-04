@@ -21,6 +21,26 @@ const ESSAY_TYPES = [
   { id: 'personal', label: 'Personal Essay', prompts: ['identity','significance','personal_stakes'] },
 ]
 
+const COMMON_APP_PROMPTS = [
+  { id: '1', short: 'Background, identity, interest, or talent', text: 'Some students have a background, identity, interest, or talent that is so meaningful they believe their application would be incomplete without it. If this sounds like you, then please share your story.' },
+  { id: '2', short: 'A challenge, setback, or failure', text: 'The lessons we take from obstacles we encounter can be fundamental to later success. Recount a time when you faced a challenge, setback, or failure. How did it affect you, and what did you learn from the experience?' },
+  { id: '3', short: 'Questioning a belief or idea', text: 'Reflect on a time when you questioned or challenged a belief or idea. What prompted your thinking? What was the outcome?' },
+  { id: '4', short: 'Gratitude that surprised you', text: 'Reflect on something that someone has done for you that has made you happy or thankful in a surprising way. How has this gratitude affected or motivated you?' },
+  { id: '5', short: 'Personal growth and new understanding', text: 'Discuss an accomplishment, event, or realization that sparked a period of personal growth and a new understanding of yourself or others.' },
+  { id: '6', short: 'A topic that captivates you', text: 'Describe a topic, idea, or concept you find so engaging that it makes you lose all track of time. Why does it captivate you? What or who do you turn to when you want to learn more?' },
+  { id: '7', short: 'Topic of your choice', text: 'Share an essay on any topic of your choice. It can be one you have already written, one that responds to a different prompt, or one of your own design.' },
+]
+
+const UCAS_QUESTIONS = [
+  'Why do you want to study this course or subject?',
+  'How have your qualifications and studies helped you to prepare for this course or subject?',
+  'What else have you done to prepare outside of education, and why are these experiences useful?',
+]
+
+const UCAS_GUIDANCE = 'These three questions cover why you are interested in the course, how your academic and extra-curricular experience prepares you for it, and what else you have done outside school. Use the 4000 character limit across all three answers in any way you choose. Avoid listing qualifications. Try the PEEL method: Point, Evidence, Explain, Link.'
+
+
+
 /* ================================================================
    WORD LISTS
    ================================================================ */
@@ -774,9 +794,9 @@ function checkRepetition(text) {
   const meCount = (text.match(/\bme\b/gi) || []).length
   const myselfCount = (text.match(/\bmyself\b/gi) || []).length
   const firstPersonTotal = iCount + myCount + meCount + myselfCount
-  const iPer100 = totalWords > 0 ? (iCount / totalWords) * 100 : 0
+  const iPer100 = totalWords > 0 ? (firstPersonTotal / totalWords) * 100 : 0
 
-  return { overused, iCount, myCount, meCount, myselfCount, firstPersonTotal, iPer100, totalWords }
+  return { overused, iCount, myCount, meCount, myselfCount, firstPersonTotal, totalIUsage: firstPersonTotal, iPer100, totalWords }
 }
 
 /* ================================================================
@@ -1382,9 +1402,9 @@ function runAllChecks(text, essayTypeId, fingerprints, tgSpelling = [], tgGramma
 
   // 5. "I" USAGE
   const iPer100 = repetition.iPer100
-  if (iPer100 > 12) score -= 6
-  else if (iPer100 > 10) score -= 4
-  else if (iPer100 > 8) score -= 2
+  if (iPer100 > 18) score -= 6
+  else if (iPer100 > 14) score -= 4
+  else if (iPer100 > 11) score -= 2
 
   // 6. ORIGINALITY + genericness fallback
   if (topSim > 50) score -= 15
@@ -1450,7 +1470,7 @@ function runAllChecks(text, essayTypeId, fingerprints, tgSpelling = [], tgGramma
     extreme_repetition: repetition.overused.length > 0 && repetition.overused[0].count >= 8,
     structure_breakdown: (mechanics.histogram && mechanics.histogram['31+'] || 0) > 0.8,
     tone_conflict: negativeTalk.count > 0 && overboasting.count > 0,
-    i_overuse_extreme: repetition.iPer100 > 7,
+    i_overuse_extreme: repetition.iPer100 > 12,
     run_on_dominance: mean > 30,
     substance_void: substance.specPer100 < 0.5 && substance.cliPer100 >= 1.5,
     cliche_dominance: substance.cliPer100 >= 3,
@@ -1488,7 +1508,7 @@ function runAllChecks(text, essayTypeId, fingerprints, tgSpelling = [], tgGramma
     { key: 'grammar', label: 'Grammar', penalty: mechanics.grammarIssues.length >= 5 ? 6 : Math.min(mechanics.grammarIssues.length, 6) },
     { key: 'sentenceLength', label: 'Sentence length', penalty: longRatio > 0.35 ? 3 : longRatio > 0.25 ? 2 : 0 },
     { key: 'repetition', label: 'Word repetition', penalty: Math.min(repetition.overused.length * 2, 6) },
-    { key: 'iUsage', label: '"I" usage', penalty: iPer100 > 12 ? 6 : iPer100 > 10 ? 4 : iPer100 > 8 ? 2 : 0 },
+    { key: 'iUsage', label: '"I" usage', penalty: iPer100 > 18 ? 6 : iPer100 > 14 ? 4 : iPer100 > 11 ? 2 : 0 },
     { key: 'originality', label: 'Originality', penalty: topSim > 50 ? 15 : topSim > 35 ? 8 : topSim > 20 ? 3 : 0 },
     { key: 'negativeTalk', label: 'Negative self-talk', penalty: Math.min(negativeTalk.count * 2, 6) },
     { key: 'overboasting', label: 'Overboasting', penalty: Math.min(overboasting.count * 2, 6) },
@@ -1943,11 +1963,36 @@ export default function App() {
   const [result, setResult] = useState(null)
   const [analyzing, setAnalyzing] = useState(false)
   const [fingerprints, setFingerprints] = useState(null)
-  const wordCount = useMemo(() => countWords(essay), [essay])
-  const charCount = essay.length
-  const limitNum = parseInt(limit, 10)
+  const [commonAppPromptId, setCommonAppPromptId] = useState('')
+  const [ucasAnswers, setUcasAnswers] = useState(['', '', ''])
+
+  const isCommonApp = essayType === 'CommonApp (main essay)'
+  const isUcas = essayType === 'UCAS Personal Statement'
+  const ucasTotalChars = ucasAnswers.reduce((sum, a) => sum + a.length, 0)
+  const ucasOver = ucasTotalChars > 4000
+
+  // For UCAS, derived essay = stitched answers; for CommonApp Other, derived question = manual
+  const effectiveEssay = isUcas
+    ? UCAS_QUESTIONS.map((q, i) => 'Q' + (i + 1) + '. ' + q + '\n\n' + (ucasAnswers[i] || '').trim()).filter((_, i) => (ucasAnswers[i] || '').trim().length > 0).join('\n\n---\n\n')
+    : essay
+  const effectiveQuestion = isUcas
+    ? UCAS_QUESTIONS.join(' | ')
+    : (isCommonApp && commonAppPromptId && commonAppPromptId !== 'other'
+      ? (COMMON_APP_PROMPTS.find(p => p.id === commonAppPromptId) || {}).text || ''
+      : question)
+  const effectiveLimit = isUcas ? '700' : limit
+
+  const wordCount = useMemo(() => countWords(effectiveEssay), [effectiveEssay])
+  const charCount = effectiveEssay.length
+  const limitNum = parseInt(effectiveLimit, 10)
   const isOver = Number.isFinite(limitNum) && limitNum > 0 && wordCount > limitNum
-  const canSubmit = essayType && limit && essay.trim().length > 50
+
+  const canSubmit = essayType
+    && (isUcas
+        ? ucasAnswers.every(a => a.trim().length > 0) && !ucasOver
+        : effectiveLimit && effectiveEssay.trim().length > 50
+          && (!isCommonApp || (commonAppPromptId && (commonAppPromptId !== 'other' || question.trim().length > 0))))
+
 
   useEffect(() => {
     emitEvent('tool_open', { action: 'open' })
@@ -1959,7 +2004,7 @@ export default function App() {
     if (!canSubmit) return
     setAnalyzing(true)
     const typeObj = ESSAY_TYPES.find(t => t.label === essayType)
-    emitEvent('essay_submit', { action: 'submit', targetLabel: essayType, extraData: { essay_type: essayType, college, word_count: wordCount, question, essay_text: essay } })
+    emitEvent('essay_submit', { action: 'submit', targetLabel: essayType, extraData: { essay_type: essayType, college, word_count: wordCount, question: effectiveQuestion, essay_text: effectiveEssay } })
 
     // Call all 4 external APIs in parallel; each falls back gracefully
     let tgSpelling = []
@@ -1969,10 +2014,10 @@ export default function App() {
     let insights = { available: false }
     try {
       const [tg, ai, sent, ins] = await Promise.all([
-        callTextGears(essay),
-        callAiDetect(essay),
-        callSentiment(essay),
-        callInsights(essay, question),
+        callTextGears(effectiveEssay),
+        callAiDetect(effectiveEssay),
+        callSentiment(effectiveEssay),
+        callInsights(effectiveEssay, effectiveQuestion),
       ])
       tgSpelling = tg.spelling || []
       tgGrammar = tg.grammar || []
@@ -1983,7 +2028,7 @@ export default function App() {
       console.warn('External API call failed, proceeding with local checks only:', err)
     }
 
-    const res = runAllChecks(essay, typeObj ? typeObj.id : 'commonapp', fingerprints, tgSpelling, tgGrammar)
+    const res = runAllChecks(effectiveEssay, typeObj ? typeObj.id : 'commonapp', fingerprints, tgSpelling, tgGrammar)
     res.aiDetect = aiDetect
     res.sentiment = sentiment
     res.insights = insights
@@ -2005,7 +2050,7 @@ export default function App() {
           </div>
         </header>
         <main className="ef-report-page">
-          <Scorecard result={result} meta={{ essayType, college, wordCount, question, limit }} onBack={() => setResult(null)} />
+          <Scorecard result={result} meta={{ essayType, college, wordCount, question: effectiveQuestion, limit: effectiveLimit }} onBack={() => setResult(null)} />
         </main>
       </div>
     )
@@ -2031,34 +2076,111 @@ export default function App() {
               {ESSAY_TYPES.map(t => <option key={t.id} value={t.label}>{t.label}</option>)}
             </select>
           </div>
+
+          {isCommonApp && (
+            <div className="ef-field">
+              <label className="ef-label">Common App prompt<span className="ef-req">*</span></label>
+              <div className="ef-prompt-list">
+                {COMMON_APP_PROMPTS.map(p => (
+                  <label key={p.id} className={'ef-prompt-card' + (commonAppPromptId === p.id ? ' is-selected' : '')}>
+                    <input type="radio" name="caPrompt" value={p.id} checked={commonAppPromptId === p.id} onChange={() => setCommonAppPromptId(p.id)} />
+                    <div className="ef-prompt-body">
+                      <div className="ef-prompt-num">Prompt {p.id}</div>
+                      <div className="ef-prompt-short">{p.short}</div>
+                      <div className="ef-prompt-text">{p.text}</div>
+                    </div>
+                  </label>
+                ))}
+                <label className={'ef-prompt-card ef-prompt-card-other' + (commonAppPromptId === 'other' ? ' is-selected' : '')}>
+                  <input type="radio" name="caPrompt" value="other" checked={commonAppPromptId === 'other'} onChange={() => setCommonAppPromptId('other')} />
+                  <div className="ef-prompt-body">
+                    <div className="ef-prompt-num">Other</div>
+                    <div className="ef-prompt-short">A custom or modified prompt</div>
+                  </div>
+                </label>
+              </div>
+              {commonAppPromptId === 'other' && (
+                <textarea className="ef-textarea ef-textarea-prompt" style={{marginTop: '12px'}} placeholder="Type or paste your prompt here..." value={question} onChange={e => setQuestion(e.target.value)} />
+              )}
+            </div>
+          )}
+
           <div className="ef-field">
             <div className="ef-row">
               <div>
                 <label className="ef-label" htmlFor="ef-college">College / University</label>
                 <input id="ef-college" className="ef-input" type="text" placeholder="e.g. Stanford University" value={college} onChange={e => setCollege(e.target.value)} />
               </div>
-              <div>
-                <label className="ef-label" htmlFor="ef-limit">Maximum length (words)<span className="ef-req">*</span></label>
-                <input id="ef-limit" className="ef-input" type="number" min="1" placeholder="e.g. 650" value={limit} onChange={e => setLimit(e.target.value)} required />
+              {!isUcas && (
+                <div>
+                  <label className="ef-label" htmlFor="ef-limit">Maximum length (words)<span className="ef-req">*</span></label>
+                  <input id="ef-limit" className="ef-input" type="number" min="1" placeholder="e.g. 650" value={limit} onChange={e => setLimit(e.target.value)} required />
+                </div>
+              )}
+              {isUcas && (
+                <div>
+                  <label className="ef-label">Character limit</label>
+                  <div className="ef-locked-field">4000 characters total (UCAS)</div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {!isCommonApp && !isUcas && (
+            <div className="ef-field">
+              <label className="ef-label" htmlFor="ef-question">Essay question</label>
+              <textarea id="ef-question" className="ef-textarea ef-textarea-prompt" placeholder="Paste the exact question you are answering..." value={question} onChange={e => setQuestion(e.target.value)} />
+            </div>
+          )}
+
+          {isUcas && (
+            <>
+              <div className="ef-ucas-note">
+                <div className="ef-ucas-note-title">About the UCAS Personal Statement</div>
+                <p>{UCAS_GUIDANCE}</p>
+              </div>
+              {UCAS_QUESTIONS.map((q, i) => (
+                <div className="ef-field" key={'ucas-' + i}>
+                  <label className="ef-label">Question {i + 1}: {q}<span className="ef-req">*</span></label>
+                  <textarea
+                    className="ef-textarea ef-textarea-essay"
+                    style={{minHeight: '180px'}}
+                    placeholder={'Your answer to question ' + (i + 1) + '...'}
+                    value={ucasAnswers[i]}
+                    onChange={e => {
+                      const next = [...ucasAnswers]
+                      next[i] = e.target.value
+                      setUcasAnswers(next)
+                    }}
+                  />
+                  <div className="ef-meter">
+                    <span>Characters: <strong>{ucasAnswers[i].length.toLocaleString()}</strong></span>
+                  </div>
+                </div>
+              ))}
+              <div className={'ef-meter ef-meter-total' + (ucasOver ? ' is-over' : '')}>
+                <span>Total: <strong>{ucasTotalChars.toLocaleString()}</strong> / 4,000 characters</span>
+                {ucasOver && <span>Over the UCAS limit</span>}
+              </div>
+            </>
+          )}
+
+          {!isUcas && (
+            <div className="ef-field">
+              <label className="ef-label" htmlFor="ef-essay">Your essay<span className="ef-req">*</span></label>
+              <textarea id="ef-essay" className="ef-textarea ef-textarea-essay" placeholder="Paste your essay here..." value={essay} onChange={e => setEssay(e.target.value)} required />
+              <div className={'ef-meter' + (isOver ? ' is-over' : '')}>
+                <span>Words: <strong>{wordCount.toLocaleString()}</strong>{limitNum ? ' / ' + limitNum.toLocaleString() : ''}</span>
+                <span>Characters: <strong>{charCount.toLocaleString()}</strong></span>
+                {isOver && <span>Over limit</span>}
               </div>
             </div>
-          </div>
-          <div className="ef-field">
-            <label className="ef-label" htmlFor="ef-question">Essay question</label>
-            <textarea id="ef-question" className="ef-textarea ef-textarea-prompt" placeholder="Paste the exact question you are answering..." value={question} onChange={e => setQuestion(e.target.value)} />
-          </div>
-          <div className="ef-field">
-            <label className="ef-label" htmlFor="ef-essay">Your essay<span className="ef-req">*</span></label>
-            <textarea id="ef-essay" className="ef-textarea ef-textarea-essay" placeholder="Paste your essay here..." value={essay} onChange={e => setEssay(e.target.value)} required />
-            <div className={'ef-meter' + (isOver ? ' is-over' : '')}>
-              <span>Words: <strong>{wordCount.toLocaleString()}</strong>{limitNum ? ` / ${limitNum.toLocaleString()}` : ''}</span>
-              <span>Characters: <strong>{charCount.toLocaleString()}</strong></span>
-              {isOver && <span>Over limit</span>}
-            </div>
-          </div>
+          )}
+
           <button type="submit" className="ef-submit" disabled={!canSubmit || analyzing}>
             {analyzing ? 'Analyzing...' : 'Analyze essay'}
           </button>
+
         </form>
       </main>
     </div>

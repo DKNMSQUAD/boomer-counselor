@@ -145,14 +145,21 @@ function DrawerSentence({ result }) {
 }
 
 function DrawerIUsage({ result }) {
-  const per = Math.round(result.details.repetition.iPer100 || 0)
-  const total = result.details.repetition.totalIUsage || 0
+  const r = result.details.repetition || {}
+  const per = Math.round(r.iPer100 || 0)
+  const total = r.totalIUsage || r.firstPersonTotal || 0
+  const breakdown = []
+  if (r.iCount) breakdown.push(r.iCount + ' x "I"')
+  if (r.meCount) breakdown.push(r.meCount + ' x "me"')
+  if (r.myCount) breakdown.push(r.myCount + ' x "my"')
+  if (r.myselfCount) breakdown.push(r.myselfCount + ' x "myself"')
   return (
     <>
-      <p>You used the word "I" <strong>{total} times</strong>, which works out to {per} times per 100 words.</p>
-      {per > 6 && <p className="sc-tip">That is more than most students. Try opening some sentences with what you did, what you saw, or what mattered, instead of "I". For example, "Watching the sun set over the lake" sounds stronger than "I watched the sun set over the lake".</p>}
-      {per >= 3 && per <= 6 && <p className="sc-tip">A bit on the high side. Mix in a few sentences that lead with a thought, image, or action instead of "I".</p>}
-      {per < 3 && <p className="sc-good-text">Balanced. You are talking about yourself without overdoing it.</p>}
+      <p>You used first-person words (I, me, my, myself) <strong>{total} times</strong> across your essay, which works out to {per} per 100 words.</p>
+      {breakdown.length > 0 && <p className="sc-meta">Breakdown: {breakdown.join(', ')}</p>}
+      {per > 12 && <p className="sc-tip">That is heavy. Open some sentences with the action, image, or thought instead. For example: "Watching the sun set over the lake" lands harder than "I watched the sun set over the lake".</p>}
+      {per >= 8 && per <= 12 && <p className="sc-tip">A bit high. Mix in a few sentences that lead with a thought, image, or action instead of starting with I, my, or me.</p>}
+      {per < 8 && <p className="sc-good-text">Balanced. You are talking about yourself without overdoing it.</p>}
     </>
   )
 }
@@ -202,7 +209,7 @@ function DrawerPrompt({ result }) {
   )
 }
 
-function exportPdf({ result, meta, bars, wcStatus, wc, limit, repeated, verdict, verdictDesc }) {
+function exportPdf({ result, meta, bars, wcStatus, wc, limit, repeated, verdict, verdictDesc, logoDataUrl }) {
   const pdf = new jsPDF({ orientation: 'portrait', unit: 'pt', format: 'a4' })
   const pageW = pdf.internal.pageSize.getWidth()
   const pageH = pdf.internal.pageSize.getHeight()
@@ -213,11 +220,20 @@ function exportPdf({ result, meta, bars, wcStatus, wc, limit, repeated, verdict,
   pdf.setTextColor(245, 240, 220)
   pdf.setFont('helvetica', 'bold')
   pdf.setFontSize(20)
-  pdf.text('Your Feedback from Boomer Counselor', M + 24, M + 36)
+  pdf.text('Essay Feedback', M + 24, M + 36)
   pdf.setFont('helvetica', 'normal')
   pdf.setFontSize(10)
   pdf.text((meta.essayType || 'Essay') + (meta.college ? ' - ' + meta.college : ''), M + 24, M + 60)
   pdf.text(wc + ' words   ' + new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }), M + 24, M + 76)
+
+  // Logo top right inside header
+  if (logoDataUrl) {
+    try {
+      const logoSize = 60
+      pdf.addImage(logoDataUrl, 'PNG', pageW - M - logoSize - 12, M + 15, logoSize, logoSize)
+    } catch (e) { /* ignore logo errors */ }
+  }
+
 
   let y = M + 90 + 32
   pdf.setTextColor(20, 20, 20)
@@ -420,16 +436,43 @@ function exportPdf({ result, meta, bars, wcStatus, wc, limit, repeated, verdict,
     drawSection('Prompt fit', pLines)
   }
 
+  // Footer on every page: website + page number
+  const pageCount = pdf.internal.getNumberOfPages()
+  for (let pi = 1; pi <= pageCount; pi++) {
+    pdf.setPage(pi)
+    pdf.setDrawColor(220, 220, 220)
+    pdf.setLineWidth(0.5)
+    pdf.line(M, pageH - 30, pageW - M, pageH - 30)
+    pdf.setFont('helvetica', 'normal')
+    pdf.setFontSize(9)
+    pdf.setTextColor(140, 140, 140)
+    pdf.text('boomercounselor.com', M, pageH - 16)
+    pdf.text('Page ' + pi + ' of ' + pageCount, pageW - M, pageH - 16, { align: 'right' })
+  }
+
   pdf.save('essay-feedback-' + Date.now() + '.pdf')
+
 }
 
 export default function Scorecard({ result, meta, onBack }) {
   const [openMetric, setOpenMetric] = useState(null)
+  const [logoDataUrl, setLogoDataUrl] = useState(null)
 
   useEffect(() => {
-    document.body.style.overflow = openMetric ? 'hidden' : ''
-    return () => { document.body.style.overflow = '' }
-  }, [openMetric])
+    let cancelled = false
+    const url = (import.meta.env.BASE_URL || '/') + 'logo.png'
+    fetch(url)
+      .then(r => r.blob())
+      .then(blob => new Promise((res, rej) => {
+        const fr = new FileReader()
+        fr.onload = () => res(fr.result)
+        fr.onerror = rej
+        fr.readAsDataURL(blob)
+      }))
+      .then(dataUrl => { if (!cancelled) setLogoDataUrl(dataUrl) })
+      .catch(() => {})
+    return () => { cancelled = true }
+  }, [])
 
   useEffect(() => {
     const onKey = (e) => { if (e.key === 'Escape') setOpenMetric(null) }
@@ -485,7 +528,7 @@ export default function Scorecard({ result, meta, onBack }) {
     <div className="sc-page">
       <header className="sc-header">
         <div className="sc-header-left">
-          <h1>Your Feedback from Boomer Counselor</h1>
+          <h1>Essay Feedback</h1>
           <div className="sc-subhead">BOOMER COUNSELOR</div>
         </div>
         <div className="sc-header-right">
@@ -529,21 +572,22 @@ export default function Scorecard({ result, meta, onBack }) {
           )}
         </div>
 
-        <div className={'sc-card sc-card-wordcount sc-wc-' + wcStatus.tone}>
+        <div className="sc-card sc-card-wordcount">
           <div className="sc-card-label">Word count</div>
           <div className="sc-wc-numbers">
             <div className="sc-wc-cell">
-              <div className="sc-wc-num">{wc}</div>
+              <div className={'sc-wc-num ' + (limit && wc > limit ? 'sc-wc-num-bad' : 'sc-wc-num-good')}>{wc}</div>
               <div className="sc-wc-sub">Yours</div>
             </div>
             <div className="sc-wc-divider" />
             <div className="sc-wc-cell">
-              <div className="sc-wc-num">{limit || '-'}</div>
+              <div className="sc-wc-num sc-wc-num-good">{limit || '-'}</div>
               <div className="sc-wc-sub">Allowed</div>
             </div>
           </div>
           <div className="sc-wc-status">{wcStatus.text}</div>
         </div>
+
 
         <div className="sc-card sc-card-overall">
           <div className="sc-card-label">Overall score</div>
@@ -567,7 +611,7 @@ export default function Scorecard({ result, meta, onBack }) {
 
       <div className="sc-actions">
         <button type="button" className="sc-btn-secondary" onClick={onBack}>Back to chat</button>
-        <button type="button" className="sc-btn-primary" onClick={() => exportPdf({ result, meta, bars, wcStatus, wc, limit, repeated, verdict, verdictDesc })}>Download PDF</button>
+        <button type="button" className="sc-btn-primary" onClick={() => exportPdf({ result, meta, bars, wcStatus, wc, limit, repeated, verdict, verdictDesc, logoDataUrl })}>Download PDF</button>
       </div>
 
       {openMetric && (
