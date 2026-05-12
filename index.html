@@ -546,12 +546,12 @@
 
 <script>
   const options = [
-    { id: 'careers',      label: 'Career Discovery',              url: '/careers/' },
-    { id: 'profile',      label: 'Building Your Profile',         url: '/profile/' },
+    { id: 'careers',      label: 'Career Discovery',              url: '/careers/',         premium: true },
+    { id: 'profile',      label: 'Building Your Profile',         url: '/profile/',         premium: true },
     { id: 'college',      label: 'Choosing The Right College',    url: '/college-search/' },
-    { id: 'tutor-counselor', label: 'Find a Tutor or Counselor',     url: '/tutor-counselor/' },
-    { id: 'scholarships', label: 'Scholarship Search',         url: null, premium: true },
-    { id: 'essays',       label: 'Essay Feedback',             url: '/essay-feedback/' }
+    { id: 'tutor-counselor', label: 'Find a Tutor or Counselor',  url: '/tutor-counselor/', premium: true },
+    { id: 'scholarships', label: 'Scholarship Search',            url: null,                premium: true },
+    { id: 'essays',       label: 'Essay Feedback',                url: '/essay-feedback/',  premium: true }
   ];
 
   const trigger    = document.getElementById('trigger');
