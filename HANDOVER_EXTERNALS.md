@@ -48,18 +48,21 @@ Audit pass for Aiyyo handover. Every external service, account, ID, and secret-s
 - **Owner:** `dknmsquad@gmail.com`.
 - **Aiyyo action:** Share → Owner → `contact@aiyyo.in`.
 
-## 5. Firebase — College Search
+## 5. Tool data — Google Sheets (CSV read-only)
 
-- **Purpose:** Auth + Firestore + storage for the College Search sub-app.
-- **Project ID:** *not in repo; lives in `apps/college-search/.env*` files on DK's laptop and in Cloudflare Pages build-time env vars.* DK to fill in flip-day.
-- **Config var names (in `apps/college-search/.env.example`):** `VITE_FIREBASE_API_KEY`, `VITE_FIREBASE_AUTH_DOMAIN`, `VITE_FIREBASE_PROJECT_ID`, `VITE_FIREBASE_STORAGE_BUCKET`, `VITE_FIREBASE_MESSAGING_SENDER_ID`, `VITE_FIREBASE_APP_ID`.
-- **Razorpay state:** *Removed.* College Search previously had Razorpay payments; per `CLAUDE.md §6`, reports are now free. Confirmed: no Razorpay keys in repo. No Stripe either. No active payment integration.
-- **Owner:** `dknmsquad@gmail.com`.
-- **Aiyyo action on flip-day:**
-  1. Add `contact@aiyyo.in` as **Owner** in Firebase Console → Project Settings → Users and permissions.
-  2. Export Firestore snapshot: `firebase firestore:export gs://<bucket>` from the project — kept as recovery point.
-  3. Export Firebase Auth users via Admin SDK or `firebase auth:export users.json`.
-  4. Update Cloudflare Pages env vars (boomer-counselor project → Settings → Environment variables) under the new owner's config, if Aiyyo decides to leave Cloudflare hosting for College Search. *Or* rebuild against a new Aiyyo Firebase project — Aiyyo's call.
+**Correction to prior CLAUDE.md:** there is no Firebase anywhere in this project. College Search and the other tools read their data from public Google Sheets via CSV export. Razorpay was removed April 2026, and Firebase was removed alongside it. No `firebaseConfig`, no `VITE_FIREBASE_*` env vars in use, no `firebase` dep in any sub-app's `package.json`. No Stripe either. **There are no API keys to transfer.**
+
+Per-tool data sheets:
+
+| Tool | Sheet ID | Read path |
+|---|---|---|
+| Profile Builder | `1vkYtslNapoUNErsGmCcAo0j8sAeNSGebcrLhq2aJLf8` | `apps/profile/src/hooks/useSheetData.js` |
+| College Search | `1Pb7Uin9Oc1omLM2kXhdisZuqV84PCMqdhRlQjNBSYlc` | `apps/college-search/src/hooks/useGoogleSheet.js` |
+| Tutor/Counselor | `1m8PPTbx2183hjsqB0X-gLjzWZV3K5BSDFhGUXRYuSXw` | `apps/tutor-counselor/src/hooks/useSheetData.js` |
+
+All owned by `dknmsquad@gmail.com`. All published-to-web for CSV export.
+
+**Aiyyo action:** Share each → Owner → `contact@aiyyo.in`. No code changes needed; the sheet ID is hardcoded in each hook, ownership flip doesn't affect that.
 
 ## 6. Cloudflare Pages
 
@@ -76,25 +79,19 @@ Audit pass for Aiyyo handover. Every external service, account, ID, and secret-s
 - **Account:** same as Cloudflare Pages (`Dknmsquad@gmail.com`).
 - **Aiyyo action:** none — domain is being decommissioned (see §8). DK deletes the Cloudflare zone for `boomercounselor.com` alongside the GoDaddy auto-renew cancellation.
 
-## 8. Domain — DECOMMISSIONED (DK decision 2026-05-12)
+## 8. Domain — 6-month 301 wind-down, then expire
 
 - **Domain:** `boomercounselor.com`
 - **Current registrar:** GoDaddy (DK's account).
 - **WHOIS dates (informational):** Created `2026-04-17`, expires `2027-04-17`.
-- **Decision:** **the domain will be deleted, not transferred.** Boomer Counselor goes forward exclusively as a section of Aiyyo (`aiyyo.in/boomer-counselor` or `aiyyo-conference.web.app/boomer-counselor`). The standalone `boomercounselor.com` URL is being retired.
-- **Implications:**
-  - **No registrar transfer.** No Cloudflare Registrar move.
-  - **No 301 redirect.** Inbound links to `boomercounselor.com/<anything>` will die when the domain is decommissioned. SEO equity built up since April 2026 is sacrificed.
-  - **No DNS handoff.** Cloudflare zone for `boomercounselor.com` can be deleted alongside the domain.
-- **Flip-day action:** none on the domain. Just stop pointing anything at it.
-- **Post-handover (DK):**
-  1. Cloudflare → zones → delete `boomercounselor.com` zone.
-  2. GoDaddy → domain settings → turn off auto-renew. Domain expires on `2027-04-17`. Optionally request immediate cancellation/release if GoDaddy supports it (most don't; auto-renew-off is the practical lever).
-  3. Once expired, the domain goes back to the registry — anyone can register it, but it's no longer in DK's path.
-- **Hub-side cleanup before flip-day:**
-  - Google OAuth client → remove `boomercounselor.com` and `www.boomercounselor.com` from Authorized JavaScript origins; keep only Aiyyo's origins.
-  - `index.html`, `terms.html`, `privacy.html`, `listing.html`, `STORE.md`, `README.md`, `DEPLOY.md` → search/replace any `boomercounselor.com` references with the Aiyyo URL. Email address `contact@boomercounselor.com` → swap to `contact@aiyyo.in` everywhere.
-  - Apps Script `apps-script.gs` → search for any hardcoded references to `boomercounselor.com`; replace.
+- **Decision:** the domain is being **sunset**, not transferred. Going forward, Boomer Counselor lives only as a section of Aiyyo. The domain stays alive as a pure 301 redirect for ~11 months (bookmark + SEO drainage to Aiyyo), then expires naturally.
+- **Action today (2 mins):**
+  - Replace `_redirects` content with: `/*  https://aiyyo-conference.web.app/boomer-counselor/:splat  301`
+  - Commit, push. Cloudflare Pages auto-deploys the redirect in ~30s.
+- **Action +1 day:** turn off GoDaddy auto-renew. Domain expires `2027-04-17` and goes dark naturally.
+- **Cloudflare Pages project:** stays at DK's account. Only serves the redirect now. No transfer needed; auto-orphans when the domain dies.
+- **Hub-side cleanup that can wait:** `index.html`, `terms.html`, `privacy.html`, etc. still contain `boomercounselor.com` strings + the `contact@boomercounselor.com` email. Not urgent (those pages now serve a 301 anyway), but worth a search/replace pass to `contact@aiyyo.in` + the Aiyyo URL before the domain dies in 2027. Tracked as a low-priority cleanup item — not a flip-day blocker.
+- **OAuth Authorized JavaScript origins:** keep `boomercounselor.com` listed until the domain expires (so existing in-flight sign-ins during the redirect window still work), then remove it.
 
 ## 9. GitHub
 
@@ -138,20 +135,19 @@ These have no account, key, or owner. Listed for completeness:
 
 ---
 
-## Handover checklist (one ticked = one console flipped)
+## Today's actions (15 mins, no ceremony)
 
-- [ ] Google Cloud OAuth project → Owner = contact@aiyyo.in + new Authorized origins
-- [ ] Apps Script project → Owner = contact@aiyyo.in (deployment ID preserved)
-- [ ] RAW sheet → Owner = contact@aiyyo.in
-- [ ] ANALYTICS sheet → Owner = contact@aiyyo.in
-- [ ] Firebase (College Search) → Owner = contact@aiyyo.in + Firestore + Auth export taken
-- [ ] Cloudflare account → contact@aiyyo.in added as Admin
-- [ ] Cloudflare Pages project → ownership flipped or 301-redirect rule installed
-- [ ] Cloudflare zone for `boomercounselor.com` deleted
-- [ ] GoDaddy auto-renew turned OFF (domain expires 2027-04-17 and is then released)
-- [ ] All `boomercounselor.com` strings stripped from repo (HTML, Apps Script, docs) and replaced with Aiyyo URL
-- [ ] `boomercounselor.com` removed from Google OAuth Authorized JavaScript origins
-- [ ] GitHub repo → transferred to Aiyyo org
-- [ ] (if applicable) Apple Developer + Google Play → manual migration
+- [ ] 5 Google Sheets → Share → Owner = `contact@aiyyo.in` (RAW analytics, friendly analytics, Profile Builder, College Search, Tutor/Counselor)
+- [ ] Apps Script project → Share → Owner = `contact@aiyyo.in`. **Deployment ID preserved** (`AKfycby...9ni6Gu4j`) so the `/exec` URL stays stable.
+- [ ] Google Cloud OAuth project → add `contact@aiyyo.in` as Owner + add `aiyyo-conference.web.app` to Authorized JavaScript origins
+- [ ] GitHub repo `DKNMSQUAD/boomer-counselor` → Settings → Transfer ownership → Aiyyo's org
+- [ ] `_redirects` updated to `/* → aiyyo-conference.web.app/boomer-counselor/:splat 301`, committed, pushed
 
-After flip-day, Aiyyo rotates every key within 7 days, then DK's email is removed from every console.
+## After domain expires (2027-04-17) — low priority cleanup
+
+- [ ] Remove `boomercounselor.com` and `www.boomercounselor.com` from OAuth Authorized JavaScript origins
+- [ ] Search/replace `boomercounselor.com` and `contact@boomercounselor.com` strings out of `index.html`, `terms.html`, `privacy.html`, etc. (these still 301 during the wind-down, so non-urgent)
+- [ ] DK turns off GoDaddy auto-renew so the domain expires cleanly
+- [ ] Cloudflare Pages project auto-orphans when domain dies; DK can delete it whenever
+
+**No key rotation needed post-handover** because there are no API keys to rotate. The OAuth client is public; Apps Script deployment ID is intentionally stable; sheet IDs are read paths.

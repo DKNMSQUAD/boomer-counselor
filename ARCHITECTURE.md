@@ -26,12 +26,12 @@ One-page picture of what talks to what. See `HANDOVER_EXTERNALS.md` for accounts
    │  └─────────────────────────────────────────────────┘    │
    └────────────────┬────────────────────────────────────────┘
                     │
-        ┌───────────┼──────────────┬──────────────────┐
-        ▼           ▼              ▼                  ▼
-   geojs.io   Apps Script    Firebase           Google Identity
-   (IP geo,    /exec         (College Search:    (OAuth, public)
-    no key)    Web App        Auth + Firestore
-               webhook)        + Storage)
+        ┌───────────┼──────────────┬─────────────────────┐
+        ▼           ▼              ▼                     ▼
+   geojs.io   Apps Script    Per-tool Google      Google Identity
+   (IP geo,    /exec         Sheets (CSV          (OAuth, public)
+    no key)    Web App        export, public,
+               webhook)       no auth)
                   │
                   ▼  LockService-wrapped doPost
         ┌─────────┴──────────────┐
@@ -113,6 +113,6 @@ Session gap rule (Apps Script): a new session row is created only when `tool_ope
 | Apps Script source mirror | `apps-script.gs` |
 | Apps Script deploy auth | `~/.clasprc.json` (DK's laptop) |
 | Native build | `dist-native/`, `build-native.sh`, `apps/college-search/capacitor.config.json` |
-| Firebase config (live values) | `apps/college-search/.env*` (DK's laptop, NOT in repo) + CF Pages env vars |
+| Tool data sources (sheet IDs, hardcoded) | `apps/profile/src/hooks/useSheetData.js`, `apps/college-search/src/hooks/useGoogleSheet.js`, `apps/tutor-counselor/src/hooks/useSheetData.js` |
 | Public OAuth client ID | `index.html:24` (hardcoded, no secret) |
 | Apps Script webhook URL | `index.html:25` (hardcoded, the /exec URL is the "secret" — it's tied to the deployment ID) |

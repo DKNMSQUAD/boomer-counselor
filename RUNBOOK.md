@@ -89,17 +89,18 @@ Edit the `options` array in `index.html`:
 
 The same `premium` flag should be considered in the `bc-switch-tool` handler if you want to block tool-to-tool switching to a locked tool (current handler does not check `premium`; tool-to-tool switching bypasses the gate — not currently exploited because all sub-apps are mounted, but worth tightening if locked tools should be inaccessible).
 
-## 7. Update the Firebase config (College Search)
+## 7. Swap a data source sheet
 
-Live values live in two places:
-1. `apps/college-search/.env*` on DK's laptop (used for local dev builds).
-2. Cloudflare Pages → boomer-counselor project → Settings → Environment variables (used for production builds).
+Each tool reads its data from a hardcoded Google Sheet ID. To swap a source (e.g. point College Search at a new sheet under Aiyyo's account):
 
-To swap to an Aiyyo-owned Firebase project:
-1. Create new Firebase project, add a web app, copy the config.
-2. Update both locations above with new `VITE_FIREBASE_*` values.
-3. Push to `main` to trigger a CF Pages rebuild with the new env vars.
-4. Verify auth + Firestore reads work at https://boomercounselor.com/college-search/.
+1. Open the relevant hook file:
+   - College Search: `apps/college-search/src/hooks/useGoogleSheet.js` — const `SHEET_ID`
+   - Profile Builder: `apps/profile/src/hooks/useSheetData.js` — const `SHEET_ID`
+   - Tutor/Counselor: `apps/tutor-counselor/src/hooks/useSheetData.js` — const `SHEET_ID`
+2. Replace the ID. Confirm the new sheet is **published to web** (File → Share → Publish to web → CSV) so the `?format=csv` / `gviz` read path works without auth.
+3. Commit + push. CF Pages rebuilds.
+
+**No Firebase, no API keys.** All tool data flows through public CSV reads of Google Sheets.
 
 ## 8. Build mobile native (College Search)
 
