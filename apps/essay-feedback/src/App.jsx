@@ -693,7 +693,7 @@ function analyzeMechanics(text) {
    ================================================================ */
 async function callTextGears(text) {
   try {
-    const res = await fetch('/api/textgears', {
+    const res = await fetch('https://boomer-counselor.pages.dev/api/textgears', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ text, language: 'en-US' }),
@@ -711,7 +711,7 @@ async function callTextGears(text) {
    ================================================================ */
 async function callAiDetect(text) {
   try {
-    const res = await fetch('/api/aidetect', {
+    const res = await fetch('https://boomer-counselor.pages.dev/api/aidetect', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ text }),
@@ -728,7 +728,7 @@ async function callAiDetect(text) {
    ================================================================ */
 async function callSentiment(text) {
   try {
-    const res = await fetch('/api/sentiment', {
+    const res = await fetch('https://boomer-counselor.pages.dev/api/sentiment', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ text }),
@@ -746,7 +746,7 @@ async function callSentiment(text) {
    ================================================================ */
 async function callInsights(essay, prompt) {
   try {
-    const res = await fetch('/api/insights', {
+    const res = await fetch('https://boomer-counselor.pages.dev/api/insights', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ essay, prompt }),
