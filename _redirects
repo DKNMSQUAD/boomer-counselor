@@ -1,1 +1,5 @@
-/*  https://aiyyo-conference.web.app/boomer-counselor/:splat  301
+/careers/*  /apps/careers/dist/:splat  200
+/profile/*  /apps/profile/dist/:splat  200
+/college-search/*  /apps/college-search/dist/:splat  200
+/tutor-counselor/*  /apps/tutor-counselor/dist/:splat  200
+/essay-feedback/*  /apps/essay-feedback/dist/:splat  200
